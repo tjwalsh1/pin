@@ -1,0 +1,36 @@
+﻿@{
+    ViewData["Title"] = "Pinpoint - Home";
+}
+
+<!-- Hero container with fixed background -->
+<div class="hero-container">
+    <div class="content-container">
+        <div class="text-box fade-in">
+            <h1>Welcome to Pinpoint Education</h1>
+            <p>
+                Adaptive learning designed by educators and for educators.
+            </p>
+        </div><br />
+        <div class="text-box fade-in delay-1">
+            <h2>Track Your Progress</h2>
+            <p>
+                See real‑time data tracking your progress.
+            </p>
+        </div><br />
+        <div class="text-box fade-in delay-2">
+            <h2>Individualized Learning</h2>
+            <p>
+                Quizzes adapt to students' skill level, ensuring efficient progression.
+            </p>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Simple on-load fade-in; no scroll animations.
+        document.addEventListener("DOMContentLoaded", function () {
+            // No additional JavaScript required as the .fade-in class is applied in markup.
+        });
+    </script>
+}

@@ -1,0 +1,68 @@
+﻿@model Pinpoint_Quiz.Dtos.RegisterDto
+
+@{
+    ViewData["Title"] = "Register";
+}
+
+<h2>Register</h2>
+
+<form method="post" asp-action="Register">
+    <div class="mb-3">
+        <label asp-for="FirstName" class="form-label"></label>
+        <input asp-for="FirstName" class="form-control" />
+        <span asp-validation-for="FirstName" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="LastName" class="form-label"></label>
+        <input asp-for="LastName" class="form-control" />
+        <span asp-validation-for="LastName" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="Email" class="form-label"></label>
+        <input asp-for="Email" class="form-control" />
+        <span asp-validation-for="Email" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="Password" class="form-label"></label>
+        <input asp-for="Password" type="password" class="form-control" />
+        <span asp-validation-for="Password" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="Grade" class="form-label"></label>
+        <input asp-for="Grade" type="number" class="form-control" min="1" max="12" />
+        <span asp-validation-for="Grade" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="ClassId" class="form-label"></label>
+        <input asp-for="ClassId" type="number" class="form-control" />
+        <span asp-validation-for="ClassId" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="SchoolId" class="form-label"></label>
+        <input asp-for="SchoolId" type="number" class="form-control" />
+        <span asp-validation-for="SchoolId" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="UserRole" class="form-label"></label>
+        <select asp-for="UserRole" class="form-select">
+            <option value="Student">Student</option>
+            <option value="Teacher">Teacher</option>
+            <option value="Administrator">Administrator</option>
+            <option value="Developer">Developer</option>
+        </select>
+        <span asp-validation-for="UserRole" class="text-danger"></span>
+    </div>
+
+    <button type="submit" class="btn btn-primary">Register</button>
+</form>
+
+@section Scripts {
+    @await Html.PartialAsync("_ValidationScriptsPartial")
+}

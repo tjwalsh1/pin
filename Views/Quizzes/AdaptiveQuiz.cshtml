@@ -1,0 +1,90 @@
+﻿@model Pinpoint_Quiz.Models.AdaptiveQuizViewModel
+
+@{
+    ViewData["Title"] = "Adaptive Quiz Round";
+}
+
+<h2>Question @Model.QuestionNumber of @Model.TotalQuestions</h2>
+
+@if (Model.MathQuestion == null && Model.EbrwQuestion == null)
+{
+    <p>No questions available for this round!</p>
+}
+else
+{
+    <!-- This form presumably posts the user’s answers to /Quizzes/adaptive-answer
+         Make sure your controller has [HttpPost("adaptive-answer")]
+         public IActionResult AdaptiveAnswer(...)
+         or you’ll get 405 again.
+    -->
+    <form method="post" action="/Quizzes/adaptive-answer">
+        <input type="hidden" name="StudentId" value="@Model.StudentId" />
+        <input type="hidden" name="QuestionNumber" value="@Model.QuestionNumber" />
+
+        <!-- MATH -->
+        <section>
+            <h4>Math Question</h4>
+            @if (Model.MathQuestion != null)
+            {
+                <p>@Model.MathQuestion.QuestionPrompt</p>
+                <input type="hidden" name="mathPrompt" value="@Model.MathQuestion.QuestionPrompt" />
+                <input type="hidden" name="correctMathAnswer" value="@Model.MathQuestion.CorrectAnswer" />
+                <input type="hidden" name="mathExplanation" value="@Model.MathQuestion.Explanation" />
+
+                @foreach (var option in Model.MathQuestion.ShuffledAnswers)
+                {
+                    var radioId = $"m_{option}";
+                    <div class="form-check">
+                        <input type="radio" class="form-check-input"
+                               name="selectedMathAnswer"
+                               id="@radioId"
+                               value="@option"
+                               required />
+                        <label class="form-check-label" for="@radioId">
+                            @option
+                        </label>
+                    </div>
+                }
+            }
+            else
+            {
+                <p><em>No math question this round.</em></p>
+            }
+        </section>
+
+        <hr />
+
+        <!-- EBRW -->
+        <section>
+            <h4>EBRW Question</h4>
+            @if (Model.EbrwQuestion != null)
+            {
+                <p>@Model.EbrwQuestion.QuestionPrompt</p>
+                <input type="hidden" name="ebrwPrompt" value="@Model.EbrwQuestion.QuestionPrompt" />
+                <input type="hidden" name="correctEbrwAnswer" value="@Model.EbrwQuestion.CorrectAnswer" />
+                <input type="hidden" name="ebrwExplanation" value="@Model.EbrwQuestion.Explanation" />
+
+                @foreach (var option in Model.EbrwQuestion.ShuffledAnswers)
+                {
+                    var radioId = $"e_{option}";
+                    <div class="form-check">
+                        <input type="radio" class="form-check-input"
+                               name="selectedEbrwAnswer"
+                               id="@radioId"
+                               value="@option"
+                               required />
+                        <label class="form-check-label" for="@radioId">
+                            @option
+                        </label>
+                    </div>
+                }
+            }
+            else
+            {
+                <p><em>No EBRW question this round.</em></p>
+            }
+        </section>
+
+        <button type="submit" class="btn btn-primary mt-3">Submit Answers</button>
+    </form>
+}

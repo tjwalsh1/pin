@@ -1,0 +1,51 @@
+﻿@model Pinpoint_Quiz.Models.SingleQuestionViewModel
+@{
+    ViewData["Title"] = $"Question {Model.QuestionNumber} of {Model.TotalQuestions}";
+}
+
+<div style="max-width:600px; margin:auto; padding:20px;">
+    @if (TempData["ReportMessage"] != null)
+    {
+        <div class="alert alert-info">
+            @TempData["ReportMessage"]
+        </div>
+    }
+
+    <!-- Report Question Button: This form posts to ReportQuestion -->
+    <form method="post" asp-action="ReportQuestion" style="margin-bottom:10px;">
+        <input type="hidden" name="questionNumber" value="@Model.QuestionNumber" />
+        <input type="hidden" name="id" value="@Model.QuestionId" />
+        <button type="submit" class="btn btn-sm btn-outline-danger" style="font-size:0.8em;">
+            Report This Question
+        </button>
+    </form>
+
+    <h2>Question @Model.QuestionNumber of @Model.TotalQuestions</h2>
+    <p>@Model.Prompt</p>
+
+    <form method="post" asp-action="Answer">
+        @for (int i = 0; i < Model.Answers.Count; i++)
+        {
+            var ans = Model.Answers[i];
+            <div class="form-check" style="margin-bottom: 10px;">
+                <input type="radio"
+                       class="form-check-input brand-radio"
+                       name="selectedAnswer"
+                       id="ans_@i"
+                       value="@ans"
+                       required />
+                <label class="form-check-label" for="ans_@i">
+                    @ans
+                </label>
+            </div>
+        }
+
+        <input type="hidden" name="questionNumber" value="@Model.QuestionNumber" />
+        <input type="hidden" name="correctAnswer" value="@Model.CorrectAnswer" />
+        <input type="hidden" name="subject" value="@Model.Subject" />
+
+        <button class="btn btn-gradient" style="margin-top:15px;" type="submit">
+            Submit
+        </button>
+    </form>
+</div>

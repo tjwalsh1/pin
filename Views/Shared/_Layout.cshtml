@@ -1,0 +1,99 @@
+﻿@using Microsoft.AspNetCore.Http
+@inject IHttpContextAccessor HttpContextAccessor
+
+@{
+    var role = HttpContextAccessor.HttpContext.Session.GetString("UserRole");
+    var userId = HttpContextAccessor.HttpContext.Session.GetInt32("UserId");
+    var userInitials = HttpContextAccessor.HttpContext.Session.GetString("UserInitials");
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>@ViewData["Title"] - Pinpoint</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Lato:400,700" />
+</head>
+<body>
+    <!-- Fixed header with left logo and right nav items -->
+    <header class="fixed-header">
+        <div class="container-fluid d-flex justify-content-between align-items-center">
+            <!-- Left: Logo -->
+            <a class="navbar-brand" href="/">
+                <img src="~/images/pinpoint-logo.png?v=@DateTime.Now.Ticks" alt="Pinpoint Quiz Logo" style="height:50px;" />
+            </a>
+            <!-- Right: Navigation -->
+            <div class="d-flex align-items-center">
+                <ul class="navbar-nav flex-row me-3">
+                    @if (role == "Teacher" || role == "Developer" || role == "Student" || role == "Administrator")
+                    {
+                        <li class="nav-item me-3">
+                            <a class="nav-link" href="/Quizzes">Quizzes</a>
+                        </li>
+                    }
+                    
+                    @if (role == "Teacher" || role == "Developer" || role == "Student" || role == "Administrator")
+                    {
+                        <li class="nav-item me-3">
+                            <a class="nav-link" href="/Performances/Progress">Progress</a>
+                        </li>
+                    }
+                    @if (role == "Teacher" || role == "Developer")
+                    {
+                        <li class="nav-item me-3">
+                            <a class="nav-link" href="/Class">Class</a>
+                        </li>
+                    }
+                    @if (role == "Administrator" || role == "Developer")
+                    {
+                        <li class="nav-item me-3">
+                            <a class="nav-link" href="/School">School</a>
+                        </li>
+                    }
+                    @if (role == "Developer")
+                    {
+                        <li class="nav-item me-3">
+                            <a class="nav-link" href="/Account/Register">Register New User</a>
+                        </li>
+                    }
+                </ul>
+                <ul class="navbar-nav flex-row">
+                    @if (userId != null)
+                    {
+                        <li class="nav-item me-3 d-flex align-items-center">
+                            @if (!string.IsNullOrEmpty(userInitials))
+                            {
+                                <span class="initials-badge me-2">@userInitials</span>
+                            }
+                            <a class="nav-link" href="/Account/Profile">Profile</a>
+                        </li>
+                        <li class="nav-item d-flex align-items-center">
+                            <form method="post" action="/Account/logout" class="d-inline">
+                                <button class="btn btn-link nav-link" type="submit">Logout</button>
+                            </form>
+                        </li>
+                    }
+                    else
+                    {
+                        <li class="nav-item">
+                            <a class="nav-link" href="/Account/Login">Sign In</a>
+                        </li>
+                    }
+                </ul>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main content area, offset by header height -->
+    <div class="main-content" style="margin-top:80px; min-height: calc(100vh - 80px);">
+        @RenderBody()
+    </div>
+
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/site.js"></script>
+    @RenderSection("Scripts", required: false)
+</body>
+</html>

@@ -1,0 +1,110 @@
+﻿@model Pinpoint_Quiz.Models.ClassIndexViewModel
+@using System.Text.Json;
+
+@{
+    ViewData["Title"] = Model.IsAdmin ? "Admin - Class Performance" : "Teacher - Class Performance";
+}
+
+<div class="hero-container">
+    <div style="max-width:1200px; margin:auto; background:#fff; padding:20px; border-radius:10px;">
+        <h2>@(Model.IsAdmin ? "Administrator Dashboard" : "Class Dashboard")</h2>
+
+        @if (Model.IsAdmin)
+        {
+            <form method="get" class="mb-3">
+                <label for="teacherDropdown">Select Teacher:</label>
+                <select id="teacherDropdown" name="teacherId" class="form-select" style="width:300px; display:inline-block;">
+                    <option value="">--- Whole School ---</option>
+                    @foreach (var t in Model.TeacherDropdown)
+                    {
+                        <option value="@t.TeacherId" selected="@(Model.SelectedTeacherId.HasValue && Model.SelectedTeacherId.Value == t.TeacherId ? "selected" : null)">
+                            @t.TeacherName
+                        </option>
+                    }
+                </select>
+                <button type="submit" class="btn btn-primary">View</button>
+                <button type="submit" name="allSchool" value="true" class="btn btn-secondary">Show Whole School</button>
+            </form>
+        }
+
+        <h3>Daily Averages (Last 30 Days)</h3>
+        <canvas id="daily-chart" width="800" height="300"></canvas>
+
+        <h3>Weekly Averages (Last 6 Months)</h3>
+        <canvas id="weekly-chart" width="800" height="300"></canvas>
+
+        <h3>Students</h3>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Quizzes Taken</th>
+                    <th>Last Quiz Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var s in Model.Students)
+                {
+                    <tr>
+                        <td>
+                            <a href="/Performances/Progress?userId=@s.StudentId">
+                                @s.Name
+                            </a>
+                        </td>
+                        <td>@s.QuizCount</td>
+                        <td>
+                            @(s.LastQuizDate.HasValue
+                                ? s.LastQuizDate.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm")
+                                : "No quizzes yet")
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        // Daily chart
+        const dailyCtx = document.getElementById('daily-chart').getContext('2d');
+        const dailyChart = new Chart(dailyCtx, {
+            type: 'line',
+            data: {
+                labels: @Html.Raw(JsonSerializer.Serialize(Model.DailyDates)),
+                datasets: [{
+                    label: 'Daily Avg Proficiency',
+                    data: @Html.Raw(JsonSerializer.Serialize(Model.DailyAverages)),
+                    borderColor: 'blue',
+                    fill: false,
+                    tension: 0.3
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: { y: { min: 1, max: 10 } }
+            }
+        });
+
+        // Weekly chart
+        const weeklyCtx = document.getElementById('weekly-chart').getContext('2d');
+        const weeklyChart = new Chart(weeklyCtx, {
+            type: 'line',
+            data: {
+                labels: @Html.Raw(JsonSerializer.Serialize(Model.WeeklyLabels)),
+                datasets: [{
+                    label: 'Weekly Avg Proficiency',
+                    data: @Html.Raw(JsonSerializer.Serialize(Model.WeeklyAverages)),
+                    borderColor: 'green',
+                    fill: false,
+                    tension: 0.3
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: { y: { min: 1, max: 10 } }
+            }
+        });
+    </script>
+}

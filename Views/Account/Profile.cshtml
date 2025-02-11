@@ -1,0 +1,75 @@
+﻿@model Pinpoint_Quiz.Models.ProfileViewModel
+
+@{
+    ViewData["Title"] = "Profile";
+}
+
+<div class="hero-container" style="background: #fff;">
+    <div class="profile-container content-container">
+        <!-- Animated profile name with gradient text -->
+        <h2 id="animated-profile-name" class="animated-profile-name">
+            @foreach (var letter in (Model.FirstName + " " + Model.LastName + "'s Profile"))
+            {
+                <span>@letter</span>
+            }
+        </h2><br />
+
+        <h3 class="section-title">Proficiency Levels</h3><br />
+        <div class="proficiency-container">
+            <div class="proficiency-box">
+                <span class="proficiency-label">Math and Logic</span><br />
+                <span class="proficiency-value" id="math-proficiency">0</span>
+            </div>
+            <div class="proficiency-box">
+                <span class="proficiency-label">English</span><br />
+                <span class="proficiency-value" id="ebrw-proficiency">0</span>
+            </div>
+            <div class="proficiency-box">
+                <span class="proficiency-label">Overall</span><br />
+                <span class="proficiency-value" id="overall-proficiency">0</span>
+            </div>
+        </div><br />
+
+        <h2>Accolades</h2><br />
+        @if (Model.Accolades != null && Model.Accolades.Any())
+        {
+            <ul class="accolades-container">
+                @foreach (var accolade in Model.Accolades)
+                {
+                    <li class="accolade-card">
+                        <strong>@accolade.Name</strong>: @accolade.Description
+                    </li>
+                }
+            </ul>
+        }
+        else
+        {
+            <p>No accolades yet.</p>
+        }
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function animateProficiency(elementId, finalValue) {
+            let element = document.getElementById(elementId);
+            let count = 0;
+            let step = 0.08;
+            let interval = setInterval(() => {
+                if (count >= finalValue) {
+                    clearInterval(interval);
+                    element.innerText = finalValue.toFixed(2);
+                } else {
+                    element.innerText = count.toFixed(2);
+                    count += step;
+                }
+            }, 25);
+        }
+
+        document.addEventListener("DOMContentLoaded", function () {
+            animateProficiency("math-proficiency", @Model.ProficiencyMath);
+            animateProficiency("ebrw-proficiency", @Model.ProficiencyEbrw);
+            animateProficiency("overall-proficiency", @Model.OverallProficiency);
+        });
+    </script>
+}

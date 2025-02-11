@@ -1,0 +1,35 @@
+﻿@model Pinpoint_Quiz.Models.QuizResults
+
+@{
+    ViewData["Title"] = "Quiz Results";
+    int overallScore = Model.MathCorrect + Model.EbrwCorrect;
+    int totalQuestions = Model.MathTotal + Model.EbrwTotal;
+}
+
+<div style="padding: 15px; border: 1px solid #ccc; border-radius: 8px; margin-bottom:20px;">
+    <h2>Quiz Results</h2>
+    <p><strong>Math and Logic Correct:</strong> @Model.MathCorrect (out of @Model.MathTotal)</p>
+    <p><strong>English Correct:</strong> @Model.EbrwCorrect (out of @Model.EbrwTotal)</p>
+    <p><strong>Overall Score:</strong> @overallScore / @totalQuestions</p>
+    @* If you want to display a quiz date, use .ToLocalTime() *@
+    @* <p><strong>Date:</strong> @Model.QuizDate.ToLocalTime().ToString("MMMM dd, yyyy - hh:mm tt")</p> *@
+</div>
+
+@if (Model.QuestionResults != null && Model.QuestionResults.Count > 0)
+{
+    foreach (var question in Model.QuestionResults)
+    {
+        <div style="width: 70%; padding: 10px; border: 1px solid #ddd; border-radius: 10px; margin: auto;">
+            <h4>@question.QuestionPrompt</h4>
+            <p>Your Answer: <span style="color:@(question.IsCorrect ? "green" : "red")">@question.YourAnswer</span></p>
+            <p>Correct Answer: <strong>@question.CorrectAnswer</strong></p>
+            <p>Explanation: @question.Explanation</p>
+        </div>
+    }
+}
+else
+{
+    <div style="padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+        <p>No question details available.</p>
+    </div>
+}

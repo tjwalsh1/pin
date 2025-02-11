@@ -1,0 +1,74 @@
+﻿@model Pinpoint_Quiz.Models.NonAdaptiveQuizViewModel
+
+@{
+    ViewData["Title"] = "Non-Adaptive Quiz";
+}
+
+<form method="post" action="/Quizzes/submit-nonadaptive">
+    <input type="hidden" name="StudentId" value="@Model.StudentId" />
+    <input type="hidden" name="Subject" value="@Model.Subject" />
+
+    <h3>Math Questions</h3>
+    @if (Model.MathQuestions != null)
+    {
+        <ol>
+            @for (int i = 0; i < Model.MathQuestions.Count; i++)
+            {
+                var q = Model.MathQuestions[i];
+                <li>
+                    <p>@q.QuestionPrompt</p>
+                    <input type="hidden" name="QuestionMathPrompt[@i]" value="@q.QuestionPrompt" />
+                    <input type="hidden" name="QuestionMathCorrect[@i]" value="@q.CorrectAnswer" />
+                    <input type="hidden" name="QuestionMathExplanation[@i]" value="@q.Explanation" />
+
+                    @foreach (var option in q.ShuffledAnswers)
+                    {
+                        var radioId = $"m_{i}_{option}";
+                        <div class="form-check">
+                            <input type="radio" class="form-check-input"
+                                   name="AnswersMath[@i]"
+                                   id="@radioId"
+                                   value="@option"
+                                   required />
+                            <label class="form-check-label" for="@radioId">
+                                @option
+                            </label>
+                        </div>
+                    }
+                </li>
+            }
+        </ol>
+    }
+
+    <h3>EBRW Questions</h3>
+    @if (Model.EbrwQuestions != null)
+    {
+        <ol>
+            @for (int j = 0; j < Model.EbrwQuestions.Count; j++)
+            {
+                var q = Model.EbrwQuestions[j];
+                <li>
+                    <p>@q.QuestionPrompt</p>
+                    <input type="hidden" name="QuestionEbrwPrompt[@j]" value="@q.QuestionPrompt" />
+                    <input type="hidden" name="QuestionEbrwCorrect[@j]" value="@q.CorrectAnswer" />
+                    <input type="hidden" name="QuestionEbrwExplanation[@j]" value="@q.Explanation" />
+
+                    @foreach (var option in q.ShuffledAnswers)
+                    {
+                        var radioId = $"e_{j}_{option}";
+                        <div class="form-check">
+                            <input type="radio" class="form-check-input"
+                                   name="AnswersEbrw[@j]"
+                                   id="@radioId"
+                                   value="@option"
+                                   required />
+                            <label class="form-check-label" for="@radioId">@option</label>
+                        </div>
+                    }
+                </li>
+            }
+        </ol>
+    }
+
+    <button type="submit" class="btn btn-success">Submit Quiz</button>
+</form>

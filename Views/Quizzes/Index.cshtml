@@ -1,0 +1,33 @@
+﻿@model Pinpoint_Quiz.Models.QuizzesIndexViewModel
+
+@{
+    ViewData["Title"] = "Quizzes";
+}
+
+<div class="hero-container">
+    <div class="content-container">
+        <!-- Use a text-box that is always fully visible -->
+        <div class="text-box fade-in" style="opacity:1; transform:none; background: rgba(255,255,255,0.95);">
+            <h1>Quiz</h1>
+            <p>Start a new quiz here!</p>
+
+            <div style="margin-top: 30px; text-align: center;">
+                @if (Model.IsLoggedIn)
+                {
+                    <a class="btn btn-gradient quiz-btn"
+                       href="/Quizzes/start-adaptive">
+                        New Quiz<br />
+                        <small>Difficulty: @Model.StartingDifficulty.ToString("F2")</small>
+                    </a>
+                }
+                else
+                {
+                    <a class="btn btn-gradient quiz-btn"
+                       href="/Account/Login">
+                        Login to Start Quiz
+                    </a>
+                }
+            </div>
+        </div>
+    </div>
+</div>
