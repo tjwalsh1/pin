@@ -6,7 +6,8 @@
 		<ImplicitUsings>enable</ImplicitUsings>
 		<RootNamespace>Pinpoint_Quiz</RootNamespace>
 		<EnableDefaultCompileItems>true</EnableDefaultCompileItems>
-	</PropertyGroup>
+	  <UserSecretsId>e6561be4-e5ef-4a56-8092-0f087a0f8567</UserSecretsId>
+  </PropertyGroup>
 
 	<ItemGroup>
 		<PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />

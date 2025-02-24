@@ -18,7 +18,7 @@ namespace Pinpoint_Quiz.Services
             // 1) If you want to store your key in appsettings.json:
             // _openAiApiKey = config["OpenAI:ApiKey"]; 
             // 2) But you specifically said "use my API key" - so let's do:
-            _openAiApiKey = "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";
+            _openAiApiKey = config["OpenAI:ApiKey"];
         }
 
         public async Task<List<QuestionDto>> GenerateQuestionsAsync(List<string> incorrectPrompts)
