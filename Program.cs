@@ -73,7 +73,11 @@ app.Urls.Add($"http://*:{port}");
 // Initialize database (optional, remove if you rely on DatabaseController)
 InitializeDatabase(app.Services);
 
-app.UseHttpsRedirection();
+if (!app.Environment.IsProduction())
+{
+    app.UseHttpsRedirection();
+}
+
 app.UseStaticFiles();
 app.UseRouting();
 
