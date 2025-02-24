@@ -1,17 +1,17 @@
-# Use the official .NET SDK as a build environment
-FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build-env
+# Use the .NET 9.0 SDK image (update tag as needed)
+FROM mcr.microsoft.com/dotnet/sdk:9.0-preview AS build-env
 WORKDIR /app
 
-# Copy project files and restore dependencies
+# Copy csproj and restore as distinct layers
 COPY *.csproj ./
 RUN dotnet restore
 
-# Copy everything else and publish
+# Copy the remaining files and publish
 COPY . ./
 RUN dotnet publish -c Release -o out
 
-# Build the runtime image
-FROM mcr.microsoft.com/dotnet/aspnet:9.0
+# Build runtime image using .NET 9.0 runtime (if available)
+FROM mcr.microsoft.com/dotnet/aspnet:9.0-preview
 WORKDIR /app
 COPY --from=build-env /app/out ./
 ENTRYPOINT ["dotnet", "Pinpoint 9.dll"]
