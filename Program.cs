@@ -15,6 +15,8 @@ Log.Logger = new LoggerConfiguration()
     .CreateLogger();
 builder.Host.UseSerilog();
 
+
+
 // Register services
 builder.Services.AddSingleton<SQLiteDatabase>(_ => new SQLiteDatabase("Qs9.db"));
 builder.Services.AddScoped<PerformanceService>();  
@@ -63,6 +65,10 @@ if (!app.Environment.IsProduction())
 {
     app.UseDeveloperExceptionPage();
 }
+
+var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
+app.Urls.Add($"http://*:{port}");
+
 
 // Initialize database (optional, remove if you rely on DatabaseController)
 InitializeDatabase(app.Services);
