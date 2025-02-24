@@ -1,4 +1,6 @@
-﻿namespace Pinpoint_Quiz.Models
+﻿using Pinpoint_Quiz.Dtos;
+
+namespace Pinpoint_Quiz.Models
 {
     public class User
     {
@@ -60,4 +62,6 @@ public class QuizHistoryRecord
     public double ActualEbrwProficiency { get; set; }
     public double ActualOverallProficiency { get; set; }
     public double TimeElapsed { get; set; }
+    public List<QuestionResultDto> QuestionResults { get; set; } = new List<QuestionResultDto>();
+
 }

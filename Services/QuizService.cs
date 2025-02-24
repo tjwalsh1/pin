@@ -38,7 +38,8 @@ namespace Pinpoint_Quiz.Services
             ActualMathProficiency,
             ActualEbrwProficiency,
             ActualOverallProficiency,
-            TimeElapsed
+            TimeElapsed,
+            Questions   -- MAKE SURE YOU SELECT THIS
         FROM QuizResults
         WHERE UserId = @UserId
         ORDER BY QuizDate DESC
@@ -61,17 +62,25 @@ namespace Pinpoint_Quiz.Services
                     EbrwCorrect = reader.GetInt32(7),
                     MathTotal = reader.GetInt32(8),
                     EbrwTotal = reader.GetInt32(9),
-                    // read actual columns safely
                     ActualMathProficiency = reader.IsDBNull(10) ? 0 : reader.GetDouble(10),
                     ActualEbrwProficiency = reader.IsDBNull(11) ? 0 : reader.GetDouble(11),
                     ActualOverallProficiency = reader.IsDBNull(12) ? 0 : reader.GetDouble(12),
                     TimeElapsed = reader.IsDBNull(13) ? 0 : reader.GetDouble(13)
-
                 };
+
+                // Parse the Questions JSON
+                var questionsJson = reader.IsDBNull(14) ? "[]" : reader.GetString(14);
+                var parsedQuestions = JsonSerializer.Deserialize<List<QuestionResultDto>>(questionsJson);
+                if (parsedQuestions != null)
+                {
+                    record.QuestionResults = parsedQuestions;
+                }
+
                 list.Add(record);
             }
             return list;
         }
+
         public void LogQuestionReport(int userId, int id, string reason)
         {
             using var conn = _db.GetConnection();
@@ -546,8 +555,9 @@ LIMIT 1
                     ebrwProf = ApplyProficiencyChange(ebrwProf, qr.Difficulty, qr.IsCorrect, retakeMode);
             }
 
-            mathProf = Math.Max(1.0, Math.Round(mathProf, 2));
-            ebrwProf = Math.Max(1.0, Math.Round(ebrwProf, 2));
+            mathProf = Math.Min(10.0, Math.Max(1.0, Math.Round(mathProf, 2)));
+            ebrwProf = Math.Min(10.0, Math.Max(1.0, Math.Round(ebrwProf, 2)));
+
             double overall = Math.Round((mathProf + ebrwProf) / 2.0, 2);
 
             using (var conn = _db.GetConnection())

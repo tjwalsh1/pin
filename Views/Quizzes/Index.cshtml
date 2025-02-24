@@ -15,9 +15,33 @@
                 @if (Model.IsLoggedIn)
                 {
                     <a class="btn btn-gradient quiz-btn"
-                       href="/Quizzes/start-adaptive">
-                        New Quiz<br />
+                       href="/Quizzes/start?mode=Easy">
+                        Easy Quiz<br />
+                        <small>Difficulty: @(Model.StartingDifficulty.ToString("F2")) - 2</small>
+                    </a>
+
+                    <br />
+
+                    <a class="btn btn-gradient quiz-btn"
+                       href="/Quizzes/start?mode=Normal">
+                        Normal Quiz<br />
                         <small>Difficulty: @Model.StartingDifficulty.ToString("F2")</small>
+                    </a>
+
+                    <br />
+
+                    <a class="btn btn-gradient quiz-btn"
+                       href="/Quizzes/start?mode=Hard">
+                        Hard Quiz<br />
+                        <small>Difficulty: @(Model.StartingDifficulty.ToString("F2")) + 2</small>
+                    </a>
+
+                    <br />
+
+                    <a class="btn btn-gradient quiz-btn"
+                       href="/Quizzes/start-ai">
+                        Analytical AI Quiz<br />
+                        <small>Experimental</small>
                     </a>
                 }
                 else

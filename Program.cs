@@ -1,9 +1,11 @@
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Pinpoint_Quiz.Services;
 using Serilog;
 using System;
+using Microsoft.AspNetCore.Authentication.Google;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -23,7 +25,7 @@ builder.Services.AddScoped<LessonService>();
 builder.Services.AddScoped<ClassPerformanceService>();
 builder.Services.AddScoped<SchoolPerformanceService>();
 builder.Services.AddScoped<UserService>();
-
+builder.Services.AddHttpClient<AIQuizService>();
 
 builder.Services.AddHttpContextAccessor();
 
@@ -37,6 +39,23 @@ builder.Services.AddSession(options =>
     options.Cookie.HttpOnly = true;
     options.Cookie.IsEssential = true;
 });
+
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+    options.DefaultSignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = GoogleDefaults.AuthenticationScheme;
+})
+.AddCookie()
+.AddGoogle(options =>
+{
+    options.ClientId = "<Your Google Client ID>";
+    options.ClientSecret = "<Your Google Client Secret>";
+    options.Scope.Add("https://www.googleapis.com/auth/classroom.courses");
+    options.Scope.Add("https://www.googleapis.com/auth/classroom.coursework.students");
+    options.SaveTokens = true;
+});
+
 
 var app = builder.Build();
 

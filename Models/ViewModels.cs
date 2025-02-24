@@ -168,6 +168,7 @@ namespace Pinpoint_Quiz.Models
         public List<QuestionRecord> Questions { get; set; } = new List<QuestionRecord>();
         public bool RetakeMode { get; set; } = false;
         public DateTime TimeStarted { get; set; }
+        public DifficultyMode DifficultyMode { get; set; } = DifficultyMode.Normal;
 
     }
     namespace Pinpoint_Quiz.Models

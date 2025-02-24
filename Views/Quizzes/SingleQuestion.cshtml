@@ -3,6 +3,11 @@
     ViewData["Title"] = $"Question {Model.QuestionNumber} of {Model.TotalQuestions}";
 }
 
+<!-- Include KaTeX CSS so that math is styled correctly -->
+<link rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/katex@0.16.2/dist/katex.min.css"
+      crossorigin="anonymous">
+
 <div style="max-width:600px; margin:auto; padding:20px;">
     @if (TempData["ReportMessage"] != null)
     {
@@ -21,7 +26,8 @@
     </form>
 
     <h2>Question @Model.QuestionNumber of @Model.TotalQuestions</h2>
-    <p>@Model.Prompt</p>
+    <!-- Use Html.Raw to output any math delimiters correctly -->
+    <p>@Html.Raw(Model.Prompt)</p>
 
     <form method="post" asp-action="Answer">
         @for (int i = 0; i < Model.Answers.Count; i++)
@@ -35,7 +41,7 @@
                        value="@ans"
                        required />
                 <label class="form-check-label" for="ans_@i">
-                    @ans
+                    @Html.Raw(ans)
                 </label>
             </div>
         }
@@ -49,3 +55,19 @@
         </button>
     </form>
 </div>
+
+@section Scripts {
+    <!-- Include KaTeX JS libraries -->
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.2/dist/katex.min.js" crossorigin="anonymous"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.2/dist/contrib/auto-render.min.js" crossorigin="anonymous"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            renderMathInElement(document.body, {
+                delimiters: [
+                    { left: "$$", right: "$$", display: true },
+                    { left: "\\(", right: "\\)", display: false }
+                ]
+            });
+        });
+    </script>
+}

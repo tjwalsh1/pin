@@ -15,12 +15,14 @@ namespace Pinpoint_Quiz.Controllers
         private readonly QuizService _quizService;
         private readonly AccoladeService _accoladeService;
         private readonly ILogger<QuizzesController> _logger;
+        private readonly AIQuizService _aiQuizService;
 
-        public QuizzesController(QuizService quizService, AccoladeService accoladeService, ILogger<QuizzesController> logger)
+        public QuizzesController(QuizService quizService, AccoladeService accoladeService, ILogger<QuizzesController> logger, AIQuizService aiQuizService)
         {
             _quizService = quizService;
             _accoladeService = accoladeService;
             _logger = logger;
+            _aiQuizService = aiQuizService;
         }
 
         [HttpGet("")]
@@ -41,6 +43,30 @@ namespace Pinpoint_Quiz.Controllers
             };
             return View(model);
         }
+        [HttpGet("start")]
+        public IActionResult StartQuiz(string mode = "Normal")
+        {
+            var userId = HttpContext.Session.GetInt32("UserId");
+            if (!userId.HasValue) return RedirectToAction("Login", "Account");
+
+            var difficultyMode = Enum.TryParse<DifficultyMode>(mode, out var parsedMode)
+                ? parsedMode
+                : DifficultyMode.Normal;
+
+            var quizSession = new QuizSession
+            {
+                UserId = userId.Value,
+                IsAdaptive = true, // or false, as you wish
+                LocalMath = _quizService.GetUserProficiency(userId.Value, "Math"),
+                LocalEbrw = _quizService.GetUserProficiency(userId.Value, "EBRW"),
+                TimeStarted = DateTime.Now,
+                DifficultyMode = difficultyMode
+            };
+
+            HttpContext.Session.SetObject("QuizSession", quizSession);
+            return RedirectToAction("NextQuestion");
+        }
+
 
         // Start an adaptive quiz
         [HttpGet("start-adaptive")]
@@ -63,10 +89,33 @@ namespace Pinpoint_Quiz.Controllers
             return RedirectToAction("NextQuestion");
         }
 
+        int GetTargetDifficulty(double proficiency, DifficultyMode mode)
+        {
+            // clamp proficiency to [1..10]
+            proficiency = Math.Min(10, Math.Max(1, proficiency));
+
+            switch (mode)
+            {
+                case DifficultyMode.Easy:
+                    // up to 2 below proficiency, floor at 1
+                    var easyVal = proficiency - 2;
+                    return (int)Math.Max(1, Math.Round(easyVal));
+                case DifficultyMode.Hard:
+                    // up to 2 above proficiency, cap at 10
+                    var hardVal = proficiency + 2;
+                    return (int)Math.Min(10, Math.Round(hardVal));
+                default:
+                    // Normal
+                    return (int)Math.Round(proficiency);
+            }
+        }
+
+
         // Serve the next question
         [HttpGet("NextQuestion")]
         public IActionResult NextQuestion()
         {
+
             var quizSession = HttpContext.Session.GetObject<QuizSession>("QuizSession");
             if (quizSession == null) return RedirectToAction("Index");
 
@@ -74,13 +123,23 @@ namespace Pinpoint_Quiz.Controllers
             if (quizSession.CurrentIndex >= quizSession.TotalQuestions)
                 return RedirectToAction("SubmitQuiz");
 
-            // Example logic: alternate EBRW and Math
-            // Or do 5 EBRW first, then 5 Math. Up to you.
             bool doEbrw = (quizSession.EbrwCount < 5);
+            int targetDifficulty;
 
             var question = doEbrw
                 ? _quizService.GetQuestionByDifficulty("EBRW", (int)Math.Round(quizSession.LocalEbrw))
                 : _quizService.GetQuestionByDifficulty("Math", (int)Math.Round(quizSession.LocalMath));
+
+            if (doEbrw)
+            {
+                targetDifficulty = GetTargetDifficulty(quizSession.LocalEbrw, quizSession.DifficultyMode);
+                question = _quizService.GetQuestionByDifficulty("EBRW", targetDifficulty);
+            }
+            else
+            {
+                targetDifficulty = GetTargetDifficulty(quizSession.LocalMath, quizSession.DifficultyMode);
+                question = _quizService.GetQuestionByDifficulty("Math", targetDifficulty);
+            }
 
             // Add to session record
             quizSession.Questions.Add(new QuestionRecord
@@ -357,6 +416,66 @@ namespace Pinpoint_Quiz.Controllers
             TempData["ReportMessage"] = "The question has been reported. Thank you!";
 
             // Redirect to NextQuestion so the reported question is skipped.
+            return RedirectToAction("NextQuestion");
+        }
+
+
+        [HttpGet("start-ai")]
+        public async Task<IActionResult> StartAiQuiz()
+        {
+            int? userId = HttpContext.Session.GetInt32("UserId");
+            if (!userId.HasValue) return RedirectToAction("Login", "Account");
+
+            // 1. Get the student's past results
+            var pastResults = _quizService.GetLast10Quizzes(userId.Value);
+
+            // 2. Extract prompts for the ones they got wrong
+            var incorrectPrompts = new List<string>();
+            foreach (var record in pastResults)
+            {
+                // record may have a property "QuestionResults" if you've stored them
+                // For each question result, if it's not correct, we add the prompt
+                if (record.QuestionResults != null)
+                {
+                    foreach (var q in record.QuestionResults)
+                    {
+                        if (!q.IsCorrect)
+                        {
+                            incorrectPrompts.Add(q.QuestionPrompt);
+                        }
+                    }
+                }
+            }
+
+            // Fallback if no incorrect prompts
+            if (incorrectPrompts.Count == 0)
+            {
+                return RedirectToAction("StartQuiz", new { mode = "Normal" });
+            }
+
+            // 3. Generate new questions with ChatGPT
+            var generatedQuestions = await _aiQuizService.GenerateQuestionsAsync(incorrectPrompts);
+            if (generatedQuestions == null || generatedQuestions.Count == 0)
+            {
+                // fallback if generation fails
+                return RedirectToAction("StartQuiz", new { mode = "Normal" });
+            }
+
+            // 4. Create a new quiz session with these questions
+            var quizSession = new QuizSession
+            {
+                UserId = userId.Value,
+                IsAdaptive = false,
+                Questions = generatedQuestions.Select(g => new QuestionRecord
+                {
+                    Subject = g.Subject ?? "Math", // or something default
+                    Dto = g,
+                    UserCorrect = null
+                }).ToList(),
+                TimeStarted = DateTime.Now
+            };
+
+            HttpContext.Session.SetObject("QuizSession", quizSession);
             return RedirectToAction("NextQuestion");
         }
 
