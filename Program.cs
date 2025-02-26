@@ -9,7 +9,7 @@ using Microsoft.AspNetCore.Authentication.Google;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Setup Serilog for logging
+// Setup Serilog
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
     .CreateLogger();
@@ -57,28 +57,26 @@ builder.Services.AddAuthentication(options =>
 
 var app = builder.Build();
 
-// Use developer exception page in Development
+// Force binding on port 8080 regardless of environment
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.ListenAnyIP(8080);
+});
+Log.Information("Kestrel forced to listen on port 8080.");
+
+// (For debugging) Log the value of PORT from the environment:
+var envPort = Environment.GetEnvironmentVariable("PORT") ?? "not set";
+Log.Information("Environment variable PORT: {EnvPort}", envPort);
+
+// Initialize database
+InitializeDatabase(app.Services);
+
+// In production we don’t want HTTPS redirection, so for now disable it entirely:
 if (app.Environment.IsDevelopment())
 {
     app.UseDeveloperExceptionPage();
-}
-
-// Force Kestrel to always listen on port 8080
-builder.WebHost.ConfigureKestrel(options =>
-{
-    options.ListenAnyIP(8080);  // Hardcoded port 8080
-});
-
-// Optional: Log that we're binding to port 8080
-Log.Information("Kestrel is configured to listen on port 8080.");
-
-// Initialize database (wrap in try-catch if desired)
-InitializeDatabase(app.Services);
-
-// Do NOT use HTTPS redirection in production since Cloud Run terminates TLS
-if (!app.Environment.IsProduction())
-{
-    app.UseHttpsRedirection();
+    // In development, you might add HTTPS redirection if desired.
+    // app.UseHttpsRedirection();
 }
 
 app.UseStaticFiles();
@@ -90,6 +88,9 @@ app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}"
 );
+
+// For debugging: add a minimal health endpoint
+app.MapGet("/health", () => Results.Ok("Healthy"));
 
 app.Run();
 
