@@ -9,33 +9,12 @@ using Microsoft.AspNetCore.Authentication.Google;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Configure Kestrel BEFORE building the app
-if (builder.Environment.IsProduction())
+// For production, explicitly set ASPNETCORE_URLS to force the port binding.
+// This is an "outside the box" solution that bypasses our previous approaches.
+if (!builder.Environment.IsDevelopment())
 {
-    // In production, bind to the port specified by the PORT environment variable (default to 8080)
-    builder.WebHost.ConfigureKestrel(options =>
-    {
-        var portString = Environment.GetEnvironmentVariable("PORT") ?? "8080";
-        if (int.TryParse(portString, out int port))
-        {
-            options.ListenAnyIP(port);
-        }
-        else
-        {
-            options.ListenAnyIP(8080);
-        }
-    });
-}
-else
-{
-    // In development, bind to HTTPS on localhost:5555 using the local dev certificate
-    builder.WebHost.ConfigureKestrel(options =>
-    {
-        options.ListenLocalhost(5555, listenOptions =>
-        {
-            listenOptions.UseHttps();
-        });
-    });
+    Environment.SetEnvironmentVariable("ASPNETCORE_URLS", "http://0.0.0.0:8080");
+    Log.Information("ASPNETCORE_URLS set to http://0.0.0.0:8080");
 }
 
 // Setup Serilog for logging
@@ -86,17 +65,18 @@ builder.Services.AddAuthentication(options =>
 
 var app = builder.Build();
 
-if (builder.Environment.IsDevelopment())
+if (app.Environment.IsDevelopment())
 {
     app.UseDeveloperExceptionPage();
 }
-
-// In production, we let Cloud Run handle TLS, so no HTTPS redirection is needed.
-if (!app.Environment.IsProduction())
+else
 {
-    // Optionally, if you need HTTPS redirection in development, uncomment this:
-    // app.UseHttpsRedirection();
+    // In production we rely solely on ASPNETCORE_URLS
+    // so we do not call any additional UseUrls or ConfigureKestrel
 }
+
+// (Optional) For troubleshooting, add a health endpoint
+app.MapGet("/health", () => Results.Ok("Healthy"));
 
 app.UseStaticFiles();
 app.UseRouting();
@@ -107,8 +87,5 @@ app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}"
 );
-
-// Add a simple health endpoint for testing
-app.MapGet("/health", () => Results.Ok("Healthy"));
 
 app.Run();
