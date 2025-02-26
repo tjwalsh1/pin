@@ -78,7 +78,7 @@ else
     // In Production (like Cloud Run), bind to the PORT environment variable
     var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
     app.Urls.Clear();
-    app.Urls.Add($"https://*:{port}");
+    app.Urls.Add($"http://*:{port}");
 }
 
 // Initialize database (optional)
