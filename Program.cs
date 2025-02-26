@@ -9,7 +9,7 @@ using Microsoft.AspNetCore.Authentication.Google;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Setup Serilog for logging
+// Setup Serilog
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
     .CreateLogger();
@@ -38,7 +38,7 @@ builder.Services.AddSession(options =>
     options.Cookie.IsEssential = true;
 });
 
-// Authentication configuration
+// Authentication
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = CookieAuthenticationDefaults.AuthenticationScheme;
@@ -57,33 +57,33 @@ builder.Services.AddAuthentication(options =>
 
 var app = builder.Build();
 
-// Show developer exception page in Development mode
+// In development, use HTTPS as specified by launchSettings.json
 if (app.Environment.IsDevelopment())
 {
     app.UseDeveloperExceptionPage();
-}
-
-// Configure URL bindings based on environment
-if (app.Environment.IsProduction())
-{
-    // Cloud Run automatically sets the PORT environment variable (usually 8080).
-    var port = Environment.GetEnvironmentVariable("PORT");
-    if (!string.IsNullOrEmpty(port))
-    {
-        app.Urls.Clear();
-        app.Urls.Add($"http://*:{port}");
-        // In production, do not force HTTPS redirection; Cloud Run terminates HTTPS externally.
-    }
+    // For local debugging, let the launchSettings.json or default Kestrel config handle HTTPS.
 }
 else
 {
-    // For local development, use HTTPS if desired.
-    // Ensure your launchSettings.json matches, e.g. "https://localhost:5555"
-    app.Urls.Clear();
-    app.Urls.Add("https://localhost:5555");
+    // In production, we force Kestrel to listen on the port provided by Cloud Run (PORT env var)
+    var portString = Environment.GetEnvironmentVariable("PORT") ?? "8080";
+    if (!int.TryParse(portString, out int port))
+    {
+        port = 8080; // Fallback if parsing fails
+    }
+    // Clear any previously bound URLs and configure Kestrel explicitly:
+    builder.WebHost.ConfigureKestrel(options =>
+    {
+        options.ListenAnyIP(port); // This ensures binding to the correct port
+    });
+    // Also, do not use HTTPS redirection in production
 }
 
-// Initialize the database
+// Log the port for debugging purposes:
+var effectivePort = Environment.GetEnvironmentVariable("PORT") ?? (app.Environment.IsDevelopment() ? "5001" : "8080");
+Log.Information("Application will listen on port: {Port}", effectivePort);
+
+// Initialize database (wrap in try-catch if needed for debugging)
 InitializeDatabase(app.Services);
 
 app.UseStaticFiles();
