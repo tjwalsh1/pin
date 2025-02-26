@@ -13,13 +13,12 @@ var builder = WebApplication.CreateBuilder(args);
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
     .CreateLogger();
+
 builder.Host.UseSerilog();
-
-
 
 // Register services
 builder.Services.AddSingleton<SQLiteDatabase>(_ => new SQLiteDatabase("Qs9.db"));
-builder.Services.AddScoped<PerformanceService>();  
+builder.Services.AddScoped<PerformanceService>();
 builder.Services.AddScoped<QuizService>();
 builder.Services.AddScoped<AccountService>();
 builder.Services.AddScoped<AccoladeService>();
@@ -42,6 +41,7 @@ builder.Services.AddSession(options =>
     options.Cookie.IsEssential = true;
 });
 
+// Authentication
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = CookieAuthenticationDefaults.AuthenticationScheme;
@@ -58,22 +58,33 @@ builder.Services.AddAuthentication(options =>
     options.SaveTokens = true;
 });
 
-
 var app = builder.Build();
 
 if (!app.Environment.IsProduction())
 {
+    // Developer exception page for local debugging
     app.UseDeveloperExceptionPage();
 }
 
-var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
-app.Urls.Clear();
-app.Urls.Add($"http://*:{port}");
+// Decide the port based on environment
+if (app.Environment.IsDevelopment())
+{
+    // Listen on localhost:5555 for local dev
+    app.Urls.Clear();
+    app.Urls.Add("https://localhost:5555");
+}
+else
+{
+    // In Production (like Cloud Run), bind to the PORT environment variable
+    var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
+    app.Urls.Clear();
+    app.Urls.Add($"https://*:{port}");
+}
 
-
-// Initialize database (optional, remove if you rely on DatabaseController)
+// Initialize database (optional)
 InitializeDatabase(app.Services);
 
+// Optionally redirect to HTTPS if not production
 if (!app.Environment.IsProduction())
 {
     app.UseHttpsRedirection();
