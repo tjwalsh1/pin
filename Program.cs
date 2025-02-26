@@ -9,11 +9,10 @@ using Microsoft.AspNetCore.Authentication.Google;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Optional: Serilog
+// Setup Serilog for logging
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
     .CreateLogger();
-
 builder.Host.UseSerilog();
 
 // Register services
@@ -27,12 +26,10 @@ builder.Services.AddScoped<ClassPerformanceService>();
 builder.Services.AddScoped<SchoolPerformanceService>();
 builder.Services.AddScoped<UserService>();
 builder.Services.AddHttpClient<AIQuizService>();
-
 builder.Services.AddHttpContextAccessor();
-
 builder.Services.AddControllersWithViews();
 
-// Session
+// Session configuration
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(options =>
 {
@@ -41,7 +38,7 @@ builder.Services.AddSession(options =>
     options.Cookie.IsEssential = true;
 });
 
-// Authentication
+// Authentication configuration
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = CookieAuthenticationDefaults.AuthenticationScheme;
@@ -60,39 +57,37 @@ builder.Services.AddAuthentication(options =>
 
 var app = builder.Build();
 
-if (!app.Environment.IsProduction())
+// Show developer exception page in Development mode
+if (app.Environment.IsDevelopment())
 {
-    // Developer exception page for local debugging
     app.UseDeveloperExceptionPage();
 }
 
-// Decide the port based on environment
-if (app.Environment.IsDevelopment())
+// Configure URL bindings based on environment
+if (app.Environment.IsProduction())
 {
-    // Listen on localhost:5555 for local dev
-    app.Urls.Clear();
-    app.Urls.Add("https://localhost:5555");
+    // Cloud Run automatically sets the PORT environment variable (usually 8080).
+    var port = Environment.GetEnvironmentVariable("PORT");
+    if (!string.IsNullOrEmpty(port))
+    {
+        app.Urls.Clear();
+        app.Urls.Add($"http://*:{port}");
+        // In production, do not force HTTPS redirection; Cloud Run terminates HTTPS externally.
+    }
 }
 else
 {
-    // In Production (like Cloud Run), bind to the PORT environment variable
-    var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
+    // For local development, use HTTPS if desired.
+    // Ensure your launchSettings.json matches, e.g. "https://localhost:5555"
     app.Urls.Clear();
-    app.Urls.Add($"http://*:{port}");
+    app.Urls.Add("https://localhost:5555");
 }
 
-// Initialize database (optional)
+// Initialize the database
 InitializeDatabase(app.Services);
-
-// Optionally redirect to HTTPS if not production
-if (!app.Environment.IsProduction())
-{
-    app.UseHttpsRedirection();
-}
 
 app.UseStaticFiles();
 app.UseRouting();
-
 app.UseSession();
 app.UseAuthorization();
 
@@ -109,8 +104,6 @@ void InitializeDatabase(IServiceProvider services)
     var db = scope.ServiceProvider.GetRequiredService<SQLiteDatabase>();
     using var conn = db.GetConnection();
     using var cmd = conn.CreateCommand();
-
-    // Example: ensure QuizResults table
     cmd.CommandText = @"
         CREATE TABLE IF NOT EXISTS QuizResults (
             Id INTEGER PRIMARY KEY AUTOINCREMENT,
