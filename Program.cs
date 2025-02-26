@@ -9,7 +9,7 @@ using Microsoft.AspNetCore.Authentication.Google;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Setup Serilog
+// Setup Serilog for logging
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
     .CreateLogger();
@@ -38,7 +38,7 @@ builder.Services.AddSession(options =>
     options.Cookie.IsEssential = true;
 });
 
-// Authentication
+// Authentication configuration
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = CookieAuthenticationDefaults.AuthenticationScheme;
@@ -57,34 +57,29 @@ builder.Services.AddAuthentication(options =>
 
 var app = builder.Build();
 
-// In development, use HTTPS as specified by launchSettings.json
+// Use developer exception page in Development
 if (app.Environment.IsDevelopment())
 {
     app.UseDeveloperExceptionPage();
-    // For local debugging, let the launchSettings.json or default Kestrel config handle HTTPS.
 }
-else
+
+// Force Kestrel to always listen on port 8080
+builder.WebHost.ConfigureKestrel(options =>
 {
-    // In production, we force Kestrel to listen on the port provided by Cloud Run (PORT env var)
-    var portString = Environment.GetEnvironmentVariable("PORT") ?? "8080";
-    if (!int.TryParse(portString, out int port))
-    {
-        port = 8080; // Fallback if parsing fails
-    }
-    // Clear any previously bound URLs and configure Kestrel explicitly:
-    builder.WebHost.ConfigureKestrel(options =>
-    {
-        options.ListenAnyIP(port); // This ensures binding to the correct port
-    });
-    // Also, do not use HTTPS redirection in production
-}
+    options.ListenAnyIP(8080);  // Hardcoded port 8080
+});
 
-// Log the port for debugging purposes:
-var effectivePort = Environment.GetEnvironmentVariable("PORT") ?? (app.Environment.IsDevelopment() ? "5001" : "8080");
-Log.Information("Application will listen on port: {Port}", effectivePort);
+// Optional: Log that we're binding to port 8080
+Log.Information("Kestrel is configured to listen on port 8080.");
 
-// Initialize database (wrap in try-catch if needed for debugging)
+// Initialize database (wrap in try-catch if desired)
 InitializeDatabase(app.Services);
+
+// Do NOT use HTTPS redirection in production since Cloud Run terminates TLS
+if (!app.Environment.IsProduction())
+{
+    app.UseHttpsRedirection();
+}
 
 app.UseStaticFiles();
 app.UseRouting();
