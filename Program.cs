@@ -9,7 +9,36 @@ using Microsoft.AspNetCore.Authentication.Google;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Setup Serilog
+// Configure Kestrel BEFORE building the app
+if (builder.Environment.IsProduction())
+{
+    // In production, bind to the port specified by the PORT environment variable (default to 8080)
+    builder.WebHost.ConfigureKestrel(options =>
+    {
+        var portString = Environment.GetEnvironmentVariable("PORT") ?? "8080";
+        if (int.TryParse(portString, out int port))
+        {
+            options.ListenAnyIP(port);
+        }
+        else
+        {
+            options.ListenAnyIP(8080);
+        }
+    });
+}
+else
+{
+    // In development, bind to HTTPS on localhost:5555 using the local dev certificate
+    builder.WebHost.ConfigureKestrel(options =>
+    {
+        options.ListenLocalhost(5555, listenOptions =>
+        {
+            listenOptions.UseHttps();
+        });
+    });
+}
+
+// Setup Serilog for logging
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
     .CreateLogger();
@@ -57,25 +86,15 @@ builder.Services.AddAuthentication(options =>
 
 var app = builder.Build();
 
-// Force binding on port 8080 regardless of environment
-builder.WebHost.ConfigureKestrel(options =>
-{
-    options.ListenAnyIP(8080);
-});
-Log.Information("Kestrel forced to listen on port 8080.");
-
-// (For debugging) Log the value of PORT from the environment:
-var envPort = Environment.GetEnvironmentVariable("PORT") ?? "not set";
-Log.Information("Environment variable PORT: {EnvPort}", envPort);
-
-// Initialize database
-InitializeDatabase(app.Services);
-
-// In production we don’t want HTTPS redirection, so for now disable it entirely:
-if (app.Environment.IsDevelopment())
+if (builder.Environment.IsDevelopment())
 {
     app.UseDeveloperExceptionPage();
-    // In development, you might add HTTPS redirection if desired.
+}
+
+// In production, we let Cloud Run handle TLS, so no HTTPS redirection is needed.
+if (!app.Environment.IsProduction())
+{
+    // Optionally, if you need HTTPS redirection in development, uncomment this:
     // app.UseHttpsRedirection();
 }
 
@@ -89,32 +108,7 @@ app.MapControllerRoute(
     pattern: "{controller=Home}/{action=Index}/{id?}"
 );
 
-// For debugging: add a minimal health endpoint
+// Add a simple health endpoint for testing
 app.MapGet("/health", () => Results.Ok("Healthy"));
 
 app.Run();
-
-void InitializeDatabase(IServiceProvider services)
-{
-    using var scope = services.CreateScope();
-    var db = scope.ServiceProvider.GetRequiredService<SQLiteDatabase>();
-    using var conn = db.GetConnection();
-    using var cmd = conn.CreateCommand();
-    cmd.CommandText = @"
-        CREATE TABLE IF NOT EXISTS QuizResults (
-            Id INTEGER PRIMARY KEY AUTOINCREMENT,
-            UserId INTEGER NOT NULL,
-            QuizDate DATETIME NOT NULL DEFAULT (datetime('now')),
-            MathProficiency REAL,
-            EbrwProficiency REAL,
-            OverallProficiency REAL,
-            MathCorrect INTEGER,
-            EbrwCorrect INTEGER,
-            MathTotal INTEGER,
-            EbrwTotal INTEGER,
-            Questions TEXT,
-            FOREIGN KEY (UserId) REFERENCES Users(Id)
-        );
-    ";
-    cmd.ExecuteNonQuery();
-}
