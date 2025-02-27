@@ -5,8 +5,11 @@ using Microsoft.Extensions.Hosting;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
+// Register services needed by your application.
 builder.Services.AddControllersWithViews();
+
+// Add IHttpContextAccessor to the dependency injection container.
+builder.Services.AddHttpContextAccessor();
 
 // Retrieve the port from the environment variable (default to 8080 if not set)
 var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
@@ -16,11 +19,10 @@ builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
-    // Optionally add HSTS or other production settings here
+    // Additional production settings...
 }
 
 app.UseStaticFiles();
