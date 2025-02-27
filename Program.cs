@@ -9,19 +9,21 @@ using Microsoft.Data.Sqlite;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Configure Serilog logging
+// Configure Serilog logging to output to the console.
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
     .CreateLogger();
 builder.Host.UseSerilog();
 
-// Determine connection string:
-// In production, use /tmp (writable on Cloud Run). In development, you can use the local file.
+// Determine which connection string to use.
+// In development, we use the local file (Qs9.db) from the repository.
+// In production (Cloud Run), use /tmp because the container filesystem is read-only.
 string dbConnectionString = builder.Environment.IsDevelopment()
     ? "Data Source=Qs9.db"
     : "Data Source=/tmp/Qs9.db";
 
-// Register custom services
+// Register custom services.
+// The SQLiteDatabase service should expose a GetConnection method that returns a SqliteConnection.
 builder.Services.AddSingleton<SQLiteDatabase>(_ => new SQLiteDatabase(dbConnectionString));
 builder.Services.AddScoped<PerformanceService>();
 builder.Services.AddScoped<QuizService>();
@@ -32,11 +34,11 @@ builder.Services.AddScoped<ClassPerformanceService>();
 builder.Services.AddScoped<SchoolPerformanceService>();
 builder.Services.AddScoped<UserService>();
 
-// Register IHttpContextAccessor and MVC services
+// Register IHttpContextAccessor and MVC services.
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddControllersWithViews();
 
-// Configure session
+// Configure session services.
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(options =>
 {
@@ -45,16 +47,18 @@ builder.Services.AddSession(options =>
     options.Cookie.IsEssential = true;
 });
 
-// Configure port binding based on environment
+// Configure port binding and protocol based on environment.
 if (builder.Environment.IsDevelopment())
 {
-    // In development, use HTTPS on port 5555.
+    // In development, listen on HTTPS at port 5555.
     builder.WebHost.UseUrls("https://0.0.0.0:5555");
 }
 else
 {
-    // In production (Cloud Run), use the PORT environment variable (default to 8080) over HTTP.
+    // In production (Cloud Run), the PORT environment variable is provided.
+    // Explicitly set ASPNETCORE_URLS and bind to 0.0.0.0 on that port.
     var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
+    Environment.SetEnvironmentVariable("ASPNETCORE_URLS", $"http://0.0.0.0:{port}");
     builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
 }
 
@@ -65,14 +69,15 @@ if (!app.Environment.IsProduction())
     app.UseDeveloperExceptionPage();
 }
 
-// Initialize the SQLite database (creates tables if they don't exist)
+// Initialize the SQLite database.
+// In production, this creates /tmp/Qs9.db (or uses it if it already exists).
 InitializeDatabase(app.Services);
 
 app.UseStaticFiles();
 app.UseRouting();
 
-// In production, Cloud Run terminates TLS so HTTPS redirection is not necessary.
-// In development, if you're using HTTPS you can enable redirection as needed.
+// In production, Cloud Run terminates TLS so HTTPS redirection is unnecessary.
+// In development, if you're using HTTPS you might enable redirection as needed.
 // app.UseHttpsRedirection();
 
 app.UseSession();
@@ -85,7 +90,8 @@ app.MapControllerRoute(
 app.Run();
 
 
-// This method opens the database connection and creates tables if they don't exist.
+// This method initializes the SQLite database by opening a connection
+// and executing SQL to create tables if they don't exist.
 static void InitializeDatabase(IServiceProvider services)
 {
     try
