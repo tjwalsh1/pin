@@ -8,7 +8,8 @@ var builder = WebApplication.CreateBuilder(args);
 // Register services needed by your application.
 builder.Services.AddControllersWithViews();
 
-// Add IHttpContextAccessor to the dependency injection container.
+// Register session services and IHttpContextAccessor.
+builder.Services.AddSession();
 builder.Services.AddHttpContextAccessor();
 
 // Retrieve the port from the environment variable (default to 8080 if not set)
@@ -27,6 +28,9 @@ if (!app.Environment.IsDevelopment())
 
 app.UseStaticFiles();
 app.UseRouting();
+
+// Add session middleware before authorization.
+app.UseSession();
 app.UseAuthorization();
 
 app.MapControllerRoute(
