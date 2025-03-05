@@ -8,10 +8,10 @@ namespace Pinpoint_Quiz.Services
 {
     public class PerformanceService
     {
-        private readonly SQLiteDatabase _database;
+        private readonly MySqlDatabase _database;
         private readonly ILogger<PerformanceService> _logger;
 
-        public PerformanceService(SQLiteDatabase database, ILogger<PerformanceService> logger)
+        public PerformanceService(MySqlDatabase database, ILogger<PerformanceService> logger)
         {
             _database = database;
             _logger = logger;

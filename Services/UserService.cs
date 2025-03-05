@@ -8,10 +8,10 @@ namespace Pinpoint_Quiz.Services
 {
     public class UserService
     {
-        private readonly SQLiteDatabase _db;
+        private readonly MySqlDatabase _db;
         private readonly ILogger<UserService> _logger;
 
-        public UserService(SQLiteDatabase db, ILogger<UserService> logger)
+        public UserService(MySqlDatabase db, ILogger<UserService> logger)
         {
             _db = db;
             _logger = logger;
