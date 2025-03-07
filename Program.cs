@@ -3,38 +3,40 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Pinpoint_Quiz.Services;
 using Serilog;
-using MySqlConnector; // Ensure this NuGet package is added
+using MySqlConnector;
 using System;
-using System.Data.SqlClient;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Serilog configuration
+// Configure Serilog
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
     .CreateLogger();
 builder.Host.UseSerilog();
 
-// MySQL connection string for Cloud SQL
-var dbHost = Environment.GetEnvironmentVariable("DB_HOST") ?? "34.121.132.237";
-var dbName = Environment.GetEnvironmentVariable("DB_NAME") ?? "mydatabase";
-var dbUser = Environment.GetEnvironmentVariable("DB_USER") ?? "root"; // Replace with your DB user
-var dbPass = Environment.GetEnvironmentVariable("DB_PASS") ?? "your-password"; // Replace with your password
+// MySQL connection string (use environment variables explicitly!)
+var connectionString = builder.Environment.IsDevelopment()
+    ? "Server=localhost;Database=mydatabase;User=root;Password=yourpassword;"
+    : $"Server={Environment.GetEnvironmentVariable("DB_HOST")};Database={Environment.GetEnvironmentVariable("DB_NAME")};User={Environment.GetEnvironmentVariable("DB_USER")};Password={Environment.GetEnvironmentVariable("DB_PASS")};";
 
-string dbConnectionString = $"Server={dbHost};Database={dbName};User={dbUser};Password={dbPass};SslMode=None;";
+// Explicitly register MySqlDatabase
+builder.Services.AddSingleton(new MySqlDatabase(connectionString));
 
-// Register MySQL connection explicitly
-builder.Services.AddTransient<MySqlConnection>(_ => new MySqlConnection(dbConnectionString));
-builder.Services.AddScoped<PerformanceService>();
-builder.Services.AddScoped<QuizService>();
+// Explicitly register IHttpContextAccessor (critical fix)
+builder.Services.AddHttpContextAccessor();
+
+// Register your custom services (fully explicit fix)
 builder.Services.AddScoped<AccountService>();
+builder.Services.AddScoped<QuizService>();
+builder.Services.AddScoped<PerformanceService>();
 builder.Services.AddScoped<AccoladeService>();
 builder.Services.AddScoped<LessonService>();
 builder.Services.AddScoped<ClassPerformanceService>();
 builder.Services.AddScoped<SchoolPerformanceService>();
 builder.Services.AddScoped<UserService>();
+builder.Services.AddScoped<AIQuizService>();
 
-// MVC and Session configuration
+// Add MVC and session explicitly
 builder.Services.AddControllersWithViews();
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(options =>
@@ -44,16 +46,14 @@ builder.Services.AddSession(options =>
     options.Cookie.IsEssential = true;
 });
 
-// Correct port configuration (Cloud Run)
+// Explicit port binding for Cloud Run
 var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
 builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
 
 var app = builder.Build();
 
 if (!app.Environment.IsProduction())
-{
     app.UseDeveloperExceptionPage();
-}
 
 app.UseStaticFiles();
 app.UseRouting();

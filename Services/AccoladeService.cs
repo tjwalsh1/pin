@@ -8,9 +8,9 @@ namespace Pinpoint_Quiz.Services
 {
     public class AccoladeService
     {
-        private readonly SQLiteDatabase _db;
+        private readonly MySqlDatabase _db;
 
-        public AccoladeService(SQLiteDatabase db)
+        public AccoladeService(MySqlDatabase db)
         {
             _db = db;
         }

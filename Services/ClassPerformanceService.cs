@@ -9,9 +9,9 @@ namespace Pinpoint_Quiz.Services
 {
     public class ClassPerformanceService
     {
-        private readonly SQLiteDatabase _db;
+        private readonly MySqlDatabase _db;
 
-        public ClassPerformanceService(SQLiteDatabase db)
+        public ClassPerformanceService(MySqlDatabase db)
         {
             _db = db;
         }
