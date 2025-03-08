@@ -5,6 +5,7 @@ using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging;
 using Pinpoint_Quiz.Dtos;
 using Pinpoint_Quiz.Models;
+using MySqlConnector;
 
 namespace Pinpoint_Quiz.Services
 {
@@ -294,7 +295,7 @@ LIMIT 1
             return list;
         }
 
-        private QuestionDto MapReaderToQuestion(SqliteDataReader reader)
+        private QuestionDto MapReaderToQuestion(MySqlDataReader reader)
         {
             return new QuestionDto
             {

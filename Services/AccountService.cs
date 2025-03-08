@@ -1,5 +1,6 @@
 ﻿using MySqlConnector;
 using Pinpoint_Quiz.Dtos;
+using System.Data;
 
 namespace Pinpoint_Quiz.Services;
 
@@ -41,4 +42,33 @@ public class AccountService
             return reader.GetInt32("Id");
         return null;
     }
+    public UserDto GetUserById(int id)
+    {
+        using var conn = _db.GetConnection();
+        conn.Open();
+        var cmd = conn.CreateCommand();
+        cmd.CommandText = "SELECT * FROM Users WHERE Id=@Id";
+        cmd.Parameters.AddWithValue("@Id", id);
+        using var reader = cmd.ExecuteReader();
+
+        if (reader.Read())
+        {
+            return new UserDto
+            {
+                Id = reader.GetInt32("Id"),
+                Email = reader.GetString("Email"),
+                FirstName = reader.GetString("FirstName"),
+                LastName = reader.GetString("LastName"),
+                Grade = reader.IsDBNull("Grade") ? null : reader.GetInt32("Grade"),
+                ClassId = reader.IsDBNull("ClassId") ? null : reader.GetInt32("ClassId"),
+                SchoolId = reader.IsDBNull("SchoolId") ? null : reader.GetInt32("SchoolId"),
+                UserRole = reader.GetString("UserRole"),
+                ProficiencyMath = reader.GetDouble("ProficiencyMath"),
+                ProficiencyEbrw = reader.GetDouble("ProficiencyEbrw"),
+                OverallProficiency = reader.GetDouble("OverallProficiency")
+            };
+        }
+        return null;
+    }
+
 }

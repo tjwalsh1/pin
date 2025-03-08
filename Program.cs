@@ -35,6 +35,8 @@ builder.Services.AddScoped<ClassPerformanceService>();
 builder.Services.AddScoped<SchoolPerformanceService>();
 builder.Services.AddScoped<UserService>();
 builder.Services.AddScoped<AIQuizService>();
+builder.Services.AddHttpClient<AIQuizService>();
+builder.Services.AddScoped<AIQuizService>();
 
 // Add MVC and session explicitly
 builder.Services.AddControllersWithViews();

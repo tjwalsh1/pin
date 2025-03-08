@@ -424,51 +424,20 @@ namespace Pinpoint_Quiz.Controllers
         public async Task<IActionResult> StartAiQuiz()
         {
             int? userId = HttpContext.Session.GetInt32("UserId");
-            if (!userId.HasValue) return RedirectToAction("Login", "Account");
+            if (!userId.HasValue)
+                return RedirectToAction("Login", "Account");
 
-            // 1. Get the student's past results
-            var pastResults = _quizService.GetLast10Quizzes(userId.Value);
+            var generatedQuestions = await _aiQuizService.GenerateQuestionsAsync(userId.Value);
+            if (generatedQuestions == null || !generatedQuestions.Any())
+                return RedirectToAction("Index", "Quizzes");
 
-            // 2. Extract prompts for the ones they got wrong
-            var incorrectPrompts = new List<string>();
-            foreach (var record in pastResults)
-            {
-                // record may have a property "QuestionResults" if you've stored them
-                // For each question result, if it's not correct, we add the prompt
-                if (record.QuestionResults != null)
-                {
-                    foreach (var q in record.QuestionResults)
-                    {
-                        if (!q.IsCorrect)
-                        {
-                            incorrectPrompts.Add(q.QuestionPrompt);
-                        }
-                    }
-                }
-            }
-
-            // Fallback if no incorrect prompts
-            if (incorrectPrompts.Count == 0)
-            {
-                return RedirectToAction("StartQuiz", new { mode = "Normal" });
-            }
-
-            // 3. Generate new questions with ChatGPT
-            var generatedQuestions = await _aiQuizService.GenerateQuestionsAsync(incorrectPrompts);
-            if (generatedQuestions == null || generatedQuestions.Count == 0)
-            {
-                // fallback if generation fails
-                return RedirectToAction("StartQuiz", new { mode = "Normal" });
-            }
-
-            // 4. Create a new quiz session with these questions
             var quizSession = new QuizSession
             {
                 UserId = userId.Value,
                 IsAdaptive = false,
                 Questions = generatedQuestions.Select(g => new QuestionRecord
                 {
-                    Subject = g.Subject ?? "Math", // or something default
+                    Subject = g.Subject,
                     Dto = g,
                     UserCorrect = null
                 }).ToList(),
@@ -478,6 +447,7 @@ namespace Pinpoint_Quiz.Controllers
             HttpContext.Session.SetObject("QuizSession", quizSession);
             return RedirectToAction("NextQuestion");
         }
+
 
     }
 }
