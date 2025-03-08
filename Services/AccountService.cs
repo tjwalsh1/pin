@@ -7,28 +7,43 @@ namespace Pinpoint_Quiz.Services;
 public class AccountService
 {
     private readonly MySqlDatabase _db;
+    private readonly ILogger<QuizService> _logger;
 
-    public AccountService(MySqlDatabase db) => _db = db;
+    public AccountService(MySqlDatabase db, ILogger<QuizService> logger)
+    {
+        _db = db;
+        _logger = logger;
+    }
 
     public bool RegisterUser(RegisterDto dto)
     {
-        using var conn = _db.GetConnection();
-        conn.Open();
-        var cmd = conn.CreateCommand();
-        cmd.CommandText = @"
+        try
+        {
+            using var conn = _db.GetConnection();
+            conn.Open();
+            var cmd = conn.CreateCommand();
+            cmd.CommandText = @"
             INSERT INTO Users (Email, PasswordHash, FirstName, LastName, Grade, ClassId, SchoolId, UserRole) 
             VALUES (@Email, @PasswordHash, @FirstName, @LastName, @Grade, @ClassId, @SchoolId, @UserRole);
         ";
-        cmd.Parameters.AddWithValue("@Email", dto.Email);
-        cmd.Parameters.AddWithValue("@PasswordHash", BCrypt.Net.BCrypt.HashPassword(dto.Password));
-        cmd.Parameters.AddWithValue("@FirstName", dto.FirstName);
-        cmd.Parameters.AddWithValue("@LastName", dto.LastName);
-        cmd.Parameters.AddWithValue("@Grade", dto.Grade);
-        cmd.Parameters.AddWithValue("@ClassId", dto.ClassId);
-        cmd.Parameters.AddWithValue("@SchoolId", dto.SchoolId);
-        cmd.Parameters.AddWithValue("@UserRole", dto.UserRole);
-        return cmd.ExecuteNonQuery() > 0;
+            cmd.Parameters.AddWithValue("@Email", dto.Email);
+            cmd.Parameters.AddWithValue("@PasswordHash", BCrypt.Net.BCrypt.HashPassword(dto.Password));
+            cmd.Parameters.AddWithValue("@FirstName", dto.FirstName);
+            cmd.Parameters.AddWithValue("@LastName", dto.LastName);
+            cmd.Parameters.AddWithValue("@Grade", dto.Grade);
+            cmd.Parameters.AddWithValue("@ClassId", dto.ClassId);
+            cmd.Parameters.AddWithValue("@SchoolId", dto.SchoolId);
+            cmd.Parameters.AddWithValue("@UserRole", dto.UserRole);
+            return cmd.ExecuteNonQuery() > 0;
+        }
+        catch (Exception ex)
+        {
+            // Log the full exception
+            _logger.LogError(ex, "Error in RegisterUser for email: {Email}", dto.Email);
+            throw;
+        }
     }
+
 
     public int? LoginUser(string email, string password)
     {
