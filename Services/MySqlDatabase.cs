@@ -5,9 +5,9 @@ namespace Pinpoint_Quiz.Services;
 public class MySqlDatabase
 {
     private readonly string _connectionString;
-    private readonly ILogger _logger;
+    private readonly ILogger<MySqlDatabase> _logger;
 
-    public MySqlDatabase(string connectionString, ILogger logger)
+    public MySqlDatabase(string connectionString, ILogger<MySqlDatabase> logger)
     {
         _connectionString = connectionString;
         _logger = logger;
@@ -16,18 +16,14 @@ public class MySqlDatabase
     public MySqlConnection GetConnection()
     {
         var conn = new MySqlConnection(_connectionString);
-        try
+        if (conn.State != System.Data.ConnectionState.Open)
         {
             conn.Open();
             _logger.LogInformation("Successfully opened connection to MySQL.");
         }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to open MySQL connection with connection string: {ConnectionString}", MaskPassword(_connectionString));
-            throw;
-        }
         return conn;
     }
+
 
     // Utility to mask password
     private string MaskPassword(string connStr)

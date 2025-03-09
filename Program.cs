@@ -20,8 +20,12 @@ var connectionString = builder.Environment.IsDevelopment()
     : $"Server={Environment.GetEnvironmentVariable("DB_HOST")};Database={Environment.GetEnvironmentVariable("DB_NAME")};User={Environment.GetEnvironmentVariable("DB_USER")};Password={Environment.GetEnvironmentVariable("DB_PASS")};";
 
 // Explicitly register MySqlDatabase
-builder.Services.AddSingleton(new MySqlDatabase(connectionString));
-
+builder.Services.AddSingleton<MySqlDatabase>(sp => {
+    var configuration = sp.GetRequiredService<IConfiguration>();
+    var logger = sp.GetRequiredService<ILogger<MySqlDatabase>>();
+    string connectionString = configuration.GetConnectionString("DefaultConnection");
+    return new MySqlDatabase(connectionString, logger);
+});
 // Explicitly register IHttpContextAccessor (critical fix)
 builder.Services.AddHttpContextAccessor();
 

@@ -14,19 +14,25 @@ public class AccountService
         _db = db;
         _logger = logger;
     }
+    private string GenerateUsername(RegisterDto dto)
+    {
+        // Example: use the email prefix as the username.
+        var parts = dto.Email.Split('@');
+        return parts[0];
+    }
 
     public bool RegisterUser(RegisterDto dto)
     {
         try
         {
-            using var conn = _db.GetConnection();
-            conn.Open();
+            using var conn = _db.GetConnection(); // connection is already opened here.
             var cmd = conn.CreateCommand();
             cmd.CommandText = @"
-            INSERT INTO Users (Email, PasswordHash, FirstName, LastName, Grade, ClassId, SchoolId, UserRole) 
-            VALUES (@Email, @PasswordHash, @FirstName, @LastName, @Grade, @ClassId, @SchoolId, @UserRole);
+            INSERT INTO Users (Email, Username, PasswordHash, FirstName, LastName, Grade, ClassId, SchoolId, UserRole) 
+            VALUES (@Email, @Username, @PasswordHash, @FirstName, @LastName, @Grade, @ClassId, @SchoolId, @UserRole);
         ";
             cmd.Parameters.AddWithValue("@Email", dto.Email);
+            cmd.Parameters.AddWithValue("@Username", GenerateUsername(dto));
             cmd.Parameters.AddWithValue("@PasswordHash", BCrypt.Net.BCrypt.HashPassword(dto.Password));
             cmd.Parameters.AddWithValue("@FirstName", dto.FirstName);
             cmd.Parameters.AddWithValue("@LastName", dto.LastName);
@@ -38,17 +44,16 @@ public class AccountService
         }
         catch (Exception ex)
         {
-            // Log the full exception
             _logger.LogError(ex, "Error in RegisterUser for email: {Email}", dto.Email);
             throw;
         }
     }
 
 
+
     public int? LoginUser(string email, string password)
     {
         using var conn = _db.GetConnection();
-        conn.Open();
         var cmd = conn.CreateCommand();
         cmd.CommandText = "SELECT Id, PasswordHash FROM Users WHERE Email=@Email";
         cmd.Parameters.AddWithValue("@Email", email);
@@ -60,7 +65,6 @@ public class AccountService
     public UserDto GetUserById(int id)
     {
         using var conn = _db.GetConnection();
-        conn.Open();
         var cmd = conn.CreateCommand();
         cmd.CommandText = "SELECT * FROM Users WHERE Id=@Id";
         cmd.Parameters.AddWithValue("@Id", id);

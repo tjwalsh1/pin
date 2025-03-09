@@ -73,19 +73,12 @@ namespace Pinpoint_Quiz.Services
         private async Task<List<QuestionResultDto>> GetIncorrectQuestionsAsync(int userId)
         {
             var questions = new List<QuestionResultDto>();
-
             using var conn = _db.GetConnection();
-            await conn.OpenAsync();
+            // Remove the extra call to open the connection; it's already open.
 
-            string sql = @"
-                SELECT Questions FROM QuizResults
-                WHERE UserId = @UserId
-                ORDER BY QuizDate DESC
-                LIMIT 10;";
-
+            string sql = @"SELECT Questions FROM QuizResults WHERE UserId = @UserId ORDER BY QuizDate DESC LIMIT 10;";
             using var cmd = new MySqlCommand(sql, conn);
             cmd.Parameters.AddWithValue("@UserId", userId);
-
             using var reader = await cmd.ExecuteReaderAsync();
             while (await reader.ReadAsync())
             {
@@ -93,9 +86,9 @@ namespace Pinpoint_Quiz.Services
                 var parsedQuestions = System.Text.Json.JsonSerializer.Deserialize<List<QuestionResultDto>>(questionsJson);
                 questions.AddRange(parsedQuestions?.Where(q => !q.IsCorrect) ?? new List<QuestionResultDto>());
             }
-
             return questions;
         }
+
 
         private string BuildAiPrompt(List<QuestionResultDto> incorrectQuestions)
         {
