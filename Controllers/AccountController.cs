@@ -79,26 +79,26 @@ namespace Pinpoint_Quiz.Controllers
         [HttpPost("login")]
         public IActionResult Login(LoginDto dto)
         {
-            var userId = _accountService.LoginUser(dto.Email, dto.Password);
-            if (!userId.HasValue)
+            try
             {
-                ModelState.AddModelError("", "Invalid credentials.");
-                ViewBag.ErrorMessage = "Invalid email or password.";
-                return View(dto);
+                var userId = _accountService.LoginUser(dto.Email, dto.Password);
+                if (!userId.HasValue)
+                {
+                    ModelState.AddModelError("", "Invalid credentials.");
+                    ViewBag.ErrorMessage = "Invalid email or password.";
+                    return View(dto);
+                }
+                HttpContext.Session.SetInt32("UserId", userId.Value);
+        return RedirectToAction("Profile");
             }
-            HttpContext.Session.SetInt32("UserId", userId.Value);
-
-            // Optional: store user initials
-            var user = _accountService.GetUserById(userId.Value);
-            if (user != null)
+            catch (Exception ex)
             {
-                var initials = $"{user.FirstName[0]}{user.LastName[0]}".ToUpper();
-                HttpContext.Session.SetString("UserInitials", initials);
-                HttpContext.Session.SetString("UserRole", user.UserRole);
+                _logger.LogError(ex, "Error attempting to log in user with email {Email}", dto.Email);
+                return StatusCode(StatusCodes.Status500InternalServerError,
+                                  "An error occurred during login. Please check logs.");
             }
-
-            return RedirectToAction("Profile");
         }
+
 
         // GET: /Account/Profile
         [HttpGet("profile")]
