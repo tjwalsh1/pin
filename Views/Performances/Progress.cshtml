@@ -32,11 +32,13 @@
                     <strong>Actual Proficiency:</strong>
                     (Math and Logic: @quiz.ActualMathProficiency, English: @quiz.ActualEbrwProficiency, Overall: @quiz.ActualOverallProficiency)
                 </p>
-                <p>
+                <!--
+                    <p>
                     <strong>Time Started:</strong> @quiz.TimeStarted.ToLocalTime().ToString("hh:mm tt")<br />
                     <strong>Time Ended:</strong> @quiz.TimeEnded.ToLocalTime().ToString("hh:mm tt")<br />
                     <strong>Time Elapsed:</strong> @quiz.TimeElapsed.ToString("F2") seconds
                 </p>
+                -->
                 <a class="btn btn-link" href="/Quizzes/Results?quizId=@quiz.QuizId">View Details</a>
             </div>
         }

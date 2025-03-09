@@ -27,10 +27,18 @@ public class AccountService
         {
             using var conn = _db.GetConnection(); // connection is already opened here.
             var cmd = conn.CreateCommand();
+
+            double initialProf = dto.Grade - 6.00;
+            if (initialProf < 1) initialProf = 1.00;
+
             cmd.CommandText = @"
-            INSERT INTO Users (Email, Username, PasswordHash, FirstName, LastName, Grade, ClassId, SchoolId, UserRole) 
-            VALUES (@Email, @Username, @PasswordHash, @FirstName, @LastName, @Grade, @ClassId, @SchoolId, @UserRole);
-        ";
+        INSERT INTO Users 
+        (Email, Username, PasswordHash, FirstName, LastName, Grade, ClassId, SchoolId, 
+         ProficiencyMath, ProficiencyEbrw, OverallProficiency, UserRole)
+        VALUES
+        (@Email, @Username, @PasswordHash, @FirstName, @LastName, @Grade, @ClassId, @SchoolId,
+         @ProficiencyMath, @ProficiencyEbrw, @OverallProficiency, @UserRole);
+    ";
             cmd.Parameters.AddWithValue("@Email", dto.Email);
             cmd.Parameters.AddWithValue("@Username", GenerateUsername(dto));
             cmd.Parameters.AddWithValue("@PasswordHash", BCrypt.Net.BCrypt.HashPassword(dto.Password));
@@ -39,6 +47,9 @@ public class AccountService
             cmd.Parameters.AddWithValue("@Grade", dto.Grade);
             cmd.Parameters.AddWithValue("@ClassId", dto.ClassId);
             cmd.Parameters.AddWithValue("@SchoolId", dto.SchoolId);
+            cmd.Parameters.AddWithValue("@ProficiencyMath", initialProf);
+            cmd.Parameters.AddWithValue("@ProficiencyEbrw", initialProf);
+            cmd.Parameters.AddWithValue("@OverallProficiency", initialProf);
             cmd.Parameters.AddWithValue("@UserRole", dto.UserRole);
             return cmd.ExecuteNonQuery() > 0;
         }

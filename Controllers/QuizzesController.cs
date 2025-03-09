@@ -426,6 +426,14 @@ namespace Pinpoint_Quiz.Controllers
             int? userId = HttpContext.Session.GetInt32("UserId");
             if (!userId.HasValue)
                 return RedirectToAction("Login", "Account");
+            int totalWrong = _quizService.GetTotalWrongAnswers(userId.Value);
+
+            if (totalWrong < 5)
+            {
+                // Or if you want to do a quick redirect to "start" or "start-adaptive" 
+                // (depending on your existing route):
+                return RedirectToAction("StartAdaptive");
+            }
 
             var generatedQuestions = await _aiQuizService.GenerateQuestionsAsync(userId.Value);
             if (generatedQuestions == null || !generatedQuestions.Any())

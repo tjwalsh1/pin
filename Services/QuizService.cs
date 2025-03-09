@@ -716,5 +716,27 @@ namespace Pinpoint_Quiz.Services
             }
             return null;
         }
+        // In QuizService or similar
+        public int GetTotalWrongAnswers(int userId)
+        {
+            // Example if you store quiz submissions in a 'QuizHistoryRecord' or 'QuizResults' table:
+            // Each record might have question-level detail. Suppose you keep them in a JSON or separate table. 
+            // The logic below depends on how you actually store them.
+
+            // Pseudocode:
+            using var conn = _db.GetConnection();
+            conn.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = @"
+        SELECT COUNT(*) 
+        FROM QuizSubmissions 
+        WHERE UserId = @UserId
+          AND IsCorrect = 0;
+    ";
+            cmd.Parameters.AddWithValue("@UserId", userId);
+
+            return Convert.ToInt32(cmd.ExecuteScalar());
+        }
+
     }
 }

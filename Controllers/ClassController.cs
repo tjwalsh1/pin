@@ -28,11 +28,11 @@ namespace Pinpoint_Quiz.Controllers
             if (string.IsNullOrEmpty(role) || !userId.HasValue)
                 return RedirectToAction("Login", "Account");
 
-            // If the user is an administrator, redirect to the SchoolController
+/*
             if (role == "Administrator")
             {
                 return RedirectToAction("Index", "School");
-            }
+            } */
 
             // Otherwise, assume teacher role
             var teacher = _userService.GetUserById(userId.Value);
