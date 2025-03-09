@@ -67,6 +67,14 @@ namespace Pinpoint_Quiz.Controllers
             return View();
         }
 
+        [HttpGet("AccessDenied")]
+        public IActionResult AccessDenied(string returnUrl)
+        {
+            ViewBag.ReturnUrl = returnUrl;
+            return View();
+        }
+
+
         // POST: /Account/Login
         [HttpPost("login")]
         public IActionResult Login(LoginDto dto)

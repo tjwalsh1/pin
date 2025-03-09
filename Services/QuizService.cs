@@ -107,22 +107,26 @@ namespace Pinpoint_Quiz.Services
 
         private QuestionDto MapReaderToQuestion(MySqlDataReader reader)
         {
+            var difficultyInt = reader.GetInt32(7); // read an int
+            double difficulty = difficultyInt;      // cast to double if needed
+
             return new QuestionDto
             {
                 Id = reader.GetInt32(0),
                 QuestionPrompt = reader.GetString(1),
                 CorrectAnswer = reader.GetString(2),
                 WrongAnswers = new List<string>
-                {
-                    reader.IsDBNull(3) ? "" : reader.GetString(3),
-                    reader.IsDBNull(4) ? "" : reader.GetString(4),
-                    reader.IsDBNull(5) ? "" : reader.GetString(5)
-                },
+        {
+            reader.IsDBNull(3) ? "" : reader.GetString(3),
+            reader.IsDBNull(4) ? "" : reader.GetString(4),
+            reader.IsDBNull(5) ? "" : reader.GetString(5),
+        },
                 Explanation = reader.GetString(6),
-                Difficulty = reader.GetDouble(7),
+                Difficulty = difficulty,         // now it's a double in your DTO
                 Subject = reader.GetString(8)
             };
         }
+
 
         public QuestionDto GetRandomQuestion(string subject)
         {
@@ -154,7 +158,65 @@ namespace Pinpoint_Quiz.Services
             return dto;
         }
 
+
+
         public QuestionDto GetQuestionByDifficulty(string subject, int difficulty)
+        {
+            // 1. Attempt an exact subject/difficulty match
+            var question = FetchSingleQuestion(subject, difficulty);
+            if (question != null)
+            {
+                return question;
+            }
+
+            _logger.LogWarning("No question found for subject={Subject}, difficulty={Diff}, trying fallback...", subject, difficulty);
+
+            // 2. Try an approximate difficulty approach. We'll do a small loop ±1, ±2, etc.
+            for (int offset = 1; offset <= 9; offset++)
+            {
+                int lowerDiff = difficulty - offset;
+                int upperDiff = difficulty + offset;
+
+                // try lower if in [1..10]
+                if (lowerDiff >= 1)
+                {
+                    question = FetchSingleQuestion(subject, lowerDiff);
+                    if (question != null)
+                    {
+                        _logger.LogInformation("Fallback found question at difficulty {Diff}", lowerDiff);
+                        return question;
+                    }
+                }
+
+                // try upper if in [1..10]
+                if (upperDiff <= 10)
+                {
+                    question = FetchSingleQuestion(subject, upperDiff);
+                    if (question != null)
+                    {
+                        _logger.LogInformation("Fallback found question at difficulty {Diff}", upperDiff);
+                        return question;
+                    }
+                }
+            }
+
+            // 3. If we still have no question, fallback to a random question for that subject
+            _logger.LogWarning("No approximate difficulty found. Fallback: random question for {Subject}", subject);
+            question = GetRandomQuestion(subject);
+            if (question != null)
+            {
+                return question;
+            }
+
+            // 4. As a last resort, we return null, but we log an error
+            _logger.LogError("Total fallback failed. No question at all for {Subject}. Table is empty?");
+            return null;
+        }
+
+        /// <summary>
+        /// Helper that fetches a single question for exact subject/difficulty (or returns null).
+        /// </summary>
+        private QuestionDto FetchSingleQuestion(string subject, int difficulty)
         {
             QuestionDto dto = null;
             try
@@ -162,22 +224,22 @@ namespace Pinpoint_Quiz.Services
                 using var conn = _db.GetConnection();
                 using var cmd = conn.CreateCommand();
                 cmd.CommandText = @"
-                    SELECT 
-                        id,
-                        question_prompt,
-                        correct_answer,
-                        wrong_answer1,
-                        wrong_answer2,
-                        wrong_answer3,
-                        explanation,
-                        difficulty,
-                        subject
-                    FROM Questions
-                    WHERE subject = @Subj
-                      AND difficulty = @Diff
-                    ORDER BY RAND()
-                    LIMIT 1;
-                ";
+            SELECT 
+                id,
+                question_prompt,
+                correct_answer,
+                wrong_answer1,
+                wrong_answer2,
+                wrong_answer3,
+                explanation,
+                difficulty,
+                subject
+            FROM Questions
+            WHERE subject = @Subj
+              AND difficulty = @Diff
+            ORDER BY RAND()
+            LIMIT 1;
+        ";
                 cmd.Parameters.AddWithValue("@Subj", subject);
                 cmd.Parameters.AddWithValue("@Diff", difficulty);
 
@@ -189,10 +251,11 @@ namespace Pinpoint_Quiz.Services
             }
             catch (Exception ex)
             {
-                _logger.LogError($"GetQuestionByDifficulty error: {ex.Message}");
+                _logger.LogError(ex, "FetchSingleQuestion error for {Subject} diff={Diff}", subject, difficulty);
             }
             return dto;
         }
+
 
         // --------------------------------------------
         // 3) ADAPTIVE QUIZ METHODS
@@ -359,21 +422,64 @@ namespace Pinpoint_Quiz.Services
             }
         }
 
-        private double ApplyProficiencyChange(double currentProf, double difficulty, bool isCorrect, bool retakeMode)
+        // This is the function that we’ll modify so actual proficiency changes 
+        // more slowly (or differently) than the user’s “estimated” proficiency.
+        private double ApplyProficiencyChange(double currentProf, double questionDifficulty, bool isCorrect, bool retakeMode)
         {
-            // Just like your backup logic, but simplified
-            // If correct, +0.03 or +0.05 (depending on difficulty), etc.
-            // We'll keep your old logic or a version thereof. 
-            // Let’s do a simpler approach: +0.5 if correct, -1 if wrong. Then clamp [1..10].
+            // We'll keep it simple: compare currentProf to questionDifficulty 
+            // to see if the question is "above," "equal," or "below" the user's proficiency.
+            // Then apply the increments/decrements you specified.
+
+            // Because "equal" can be ambiguous, define a small range for "at the same level."
+            const double epsilon = 0.2;
+            double diff = currentProf - questionDifficulty;
+
             if (isCorrect)
             {
-                return Math.Min(10, currentProf + 0.5);
+                // CORRECT
+                if (diff < -epsilon)
+                {
+                    // If questionDifficulty is significantly above currentProf
+                    // => +0.06
+                    return currentProf + 0.06;
+                }
+                else if (Math.Abs(diff) <= epsilon)
+                {
+                    // “At” the same approximate level
+                    // => +0.04
+                    return currentProf + 0.04;
+                }
+                else
+                {
+                    // Otherwise, it's below the current proficiency
+                    // => +0.02
+                    return currentProf + 0.02;
+                }
             }
             else
             {
-                return Math.Max(1, currentProf - 1.0);
+                // INCORRECT
+                if (diff < -epsilon)
+                {
+                    // If questionDifficulty is significantly above currentProf
+                    // => -0.02
+                    return currentProf - 0.02;
+                }
+                else if (Math.Abs(diff) <= epsilon)
+                {
+                    // “At” the same approximate level
+                    // => -0.06
+                    return currentProf - 0.06;
+                }
+                else
+                {
+                    // The question is below user’s proficiency
+                    // => -0.12
+                    return currentProf - 0.12;
+                }
             }
         }
+
 
         public (double math, double ebrw, double overall) GetActualProficiencies(int userId)
         {

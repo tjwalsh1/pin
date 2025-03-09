@@ -14,22 +14,19 @@ Log.Logger = new LoggerConfiguration()
     .CreateLogger();
 builder.Host.UseSerilog();
 
-// MySQL connection string (use environment variables explicitly!)
 var connectionString = builder.Environment.IsDevelopment()
     ? "Server=localhost;Database=mydatabase;User=root;Password=yourpassword;"
     : $"Server={Environment.GetEnvironmentVariable("DB_HOST")};Database={Environment.GetEnvironmentVariable("DB_NAME")};User={Environment.GetEnvironmentVariable("DB_USER")};Password={Environment.GetEnvironmentVariable("DB_PASS")};";
 
-// Explicitly register MySqlDatabase
 builder.Services.AddSingleton<MySqlDatabase>(sp => {
     var configuration = sp.GetRequiredService<IConfiguration>();
     var logger = sp.GetRequiredService<ILogger<MySqlDatabase>>();
     string connectionString = configuration.GetConnectionString("DefaultConnection");
     return new MySqlDatabase(connectionString, logger);
 });
-// Explicitly register IHttpContextAccessor (critical fix)
+
 builder.Services.AddHttpContextAccessor();
 
-// Register your custom services (fully explicit fix)
 builder.Services.AddScoped<AccountService>();
 builder.Services.AddScoped<QuizService>();
 builder.Services.AddScoped<PerformanceService>();
@@ -41,6 +38,21 @@ builder.Services.AddScoped<UserService>();
 builder.Services.AddScoped<AIQuizService>();
 builder.Services.AddHttpClient<AIQuizService>();
 builder.Services.AddScoped<AIQuizService>();
+
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultScheme = "MyCookieScheme";
+    options.DefaultForbidScheme = "MyCookieScheme";
+})
+.AddCookie("MyCookieScheme", options =>
+{
+    // Cookie settings
+    options.LoginPath = "/Account/Login";
+    // You can add more cookie options here if needed.
+});
+
+
+
 
 // Add MVC and session explicitly
 builder.Services.AddControllersWithViews();
@@ -64,6 +76,7 @@ if (!app.Environment.IsProduction())
 app.UseStaticFiles();
 app.UseRouting();
 app.UseSession();
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllerRoute(
