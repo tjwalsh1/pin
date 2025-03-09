@@ -29,6 +29,8 @@ namespace Pinpoint_Quiz.Services
             try
             {
                 using var conn = _db.GetConnection();
+                conn.Open();
+
                 using var cmd = conn.CreateCommand();
 
                 if (string.IsNullOrEmpty(subject))
@@ -79,6 +81,8 @@ namespace Pinpoint_Quiz.Services
             try
             {
                 using var conn = _db.GetConnection();
+                conn.Open();
+
                 using var cmd = conn.CreateCommand();
                 cmd.CommandText = @"
                     SELECT Id, Title, Subject, Level, Content, VideoUrl 

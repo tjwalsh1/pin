@@ -28,6 +28,7 @@ namespace Pinpoint_Quiz.Services
         {
             var list = new List<QuizHistoryRecord>();
             using var conn = _db.GetConnection(); // Already opened
+            conn.Open();
             using var cmd = conn.CreateCommand();
             cmd.CommandText = @"
             SELECT
@@ -90,6 +91,8 @@ namespace Pinpoint_Quiz.Services
         public void LogQuestionReport(int userId, int questionId, string reason)
         {
             using var conn = _db.GetConnection();
+            conn.Open();
+
             using var cmd = conn.CreateCommand();
             cmd.CommandText = @"
                 INSERT INTO QuestionReports (UserId, QuestionId, Reason)
@@ -134,6 +137,8 @@ namespace Pinpoint_Quiz.Services
             try
             {
                 using var conn = _db.GetConnection();
+                conn.Open();
+
                 using var cmd = conn.CreateCommand();
                 cmd.CommandText = @"
                     SELECT id, question_prompt, correct_answer, wrong_answer1, wrong_answer2, wrong_answer3,
@@ -222,6 +227,8 @@ namespace Pinpoint_Quiz.Services
             try
             {
                 using var conn = _db.GetConnection();
+                conn.Open();
+
                 using var cmd = conn.CreateCommand();
                 cmd.CommandText = @"
             SELECT 
@@ -276,6 +283,8 @@ namespace Pinpoint_Quiz.Services
             // As a placeholder, just pick 'count' questions around userProf. 
             // This is simplified for demonstration; you can refine further.
             using var conn = _db.GetConnection();
+            conn.Open();
+
             using var cmd = conn.CreateCommand();
             cmd.CommandText = @"
                 SELECT
@@ -306,6 +315,8 @@ namespace Pinpoint_Quiz.Services
             try
             {
                 using var conn = _db.GetConnection();
+                conn.Open();
+
                 using var cmd = conn.CreateCommand();
                 cmd.CommandText = @"
                     SELECT question_prompt, correct_answer, wrong_answer1, wrong_answer2, wrong_answer3,
@@ -352,6 +363,8 @@ namespace Pinpoint_Quiz.Services
         {
             double proficiency = 1.0;
             using var conn = _db.GetConnection();
+            conn.Open();
+
             using var cmd = conn.CreateCommand();
             if (subject == "Math")
                 cmd.CommandText = "SELECT ProficiencyMath FROM Users WHERE Id = @UId";
@@ -376,6 +389,8 @@ namespace Pinpoint_Quiz.Services
             double mathProf, ebrwProf;
             using (var conn = _db.GetConnection())
             {
+                conn.Open();
+
                 using var cmd = conn.CreateCommand();
                 cmd.CommandText = "SELECT ProficiencyMath, ProficiencyEbrw FROM Users WHERE Id = @U";
                 cmd.Parameters.AddWithValue("@U", userId);
@@ -406,6 +421,8 @@ namespace Pinpoint_Quiz.Services
 
             using (var conn = _db.GetConnection())
             {
+                conn.Open();
+
                 using var cmd = conn.CreateCommand();
                 cmd.CommandText = @"
                     UPDATE Users
@@ -485,6 +502,8 @@ namespace Pinpoint_Quiz.Services
         {
             double math = 0, ebrw = 0, overall = 0;
             using var conn = _db.GetConnection();
+            conn.Open();
+
             using var cmd = conn.CreateCommand();
             cmd.CommandText = "SELECT ProficiencyMath, ProficiencyEbrw, OverallProficiency FROM Users WHERE Id = @U";
             cmd.Parameters.AddWithValue("@U", userId);
@@ -570,6 +589,8 @@ namespace Pinpoint_Quiz.Services
             double timeElapsed)
         {
             using var conn = _db.GetConnection();
+            conn.Open();
+
             using var cmd = conn.CreateCommand();
             string questionsJson = JsonSerializer.Serialize(questionResults);
 
@@ -612,6 +633,8 @@ namespace Pinpoint_Quiz.Services
         public QuizResults GetQuizResults(int userId, int quizId)
         {
             using var conn = _db.GetConnection();
+            conn.Open();
+
             using var cmd = conn.CreateCommand();
             cmd.CommandText = @"
                 SELECT 
@@ -666,6 +689,8 @@ namespace Pinpoint_Quiz.Services
         public QuizResults GetLatestQuizResult(int userId)
         {
             using var conn = _db.GetConnection();
+            conn.Open();
+
             using var cmd = conn.CreateCommand();
             cmd.CommandText = @"
                 SELECT 

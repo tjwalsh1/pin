@@ -25,20 +25,23 @@ public class AccountService
     {
         try
         {
-            using var conn = _db.GetConnection(); // connection is already opened here.
+            using var conn = _db.GetConnection();
+            conn.Open(); // Open the connection before executing commands
+
             var cmd = conn.CreateCommand();
 
             double initialProf = dto.Grade - 6.00;
             if (initialProf < 1) initialProf = 1.00;
 
             cmd.CommandText = @"
-        INSERT INTO Users 
-        (Email, Username, PasswordHash, FirstName, LastName, Grade, ClassId, SchoolId, 
-         ProficiencyMath, ProficiencyEbrw, OverallProficiency, UserRole)
-        VALUES
-        (@Email, @Username, @PasswordHash, @FirstName, @LastName, @Grade, @ClassId, @SchoolId,
-         @ProficiencyMath, @ProficiencyEbrw, @OverallProficiency, @UserRole);
-    ";
+            INSERT INTO Users 
+            (Email, Username, PasswordHash, FirstName, LastName, Grade, ClassId, SchoolId, 
+             ProficiencyMath, ProficiencyEbrw, OverallProficiency, UserRole)
+            VALUES
+            (@Email, @Username, @PasswordHash, @FirstName, @LastName, @Grade, @ClassId, @SchoolId,
+             @ProficiencyMath, @ProficiencyEbrw, @OverallProficiency, @UserRole);
+        ";
+
             cmd.Parameters.AddWithValue("@Email", dto.Email);
             cmd.Parameters.AddWithValue("@Username", GenerateUsername(dto));
             cmd.Parameters.AddWithValue("@PasswordHash", BCrypt.Net.BCrypt.HashPassword(dto.Password));
@@ -62,27 +65,41 @@ public class AccountService
 
 
 
+
     public int? LoginUser(string email, string password)
     {
         using var conn = _db.GetConnection();
+        conn.Open(); // Open the connection here
+
         var cmd = conn.CreateCommand();
         cmd.CommandText = "SELECT Id, PasswordHash FROM Users WHERE Email=@Email";
         cmd.Parameters.AddWithValue("@Email", email);
+
         using var reader = cmd.ExecuteReader();
         if (reader.Read() && BCrypt.Net.BCrypt.Verify(password, reader.GetString("PasswordHash")))
             return reader.GetInt32("Id");
         return null;
     }
+
     public UserDto GetUserById(int id)
     {
         using var conn = _db.GetConnection();
+        conn.Open(); // Ensure the connection is open
         var cmd = conn.CreateCommand();
         cmd.CommandText = "SELECT * FROM Users WHERE Id=@Id";
         cmd.Parameters.AddWithValue("@Id", id);
-        using var reader = cmd.ExecuteReader();
 
+        using var reader = cmd.ExecuteReader();
         if (reader.Read())
         {
+            // Retrieve the raw value for UserRole and log it
+            object rawRoleObj = reader["UserRole"];
+            string rawUserRole = rawRoleObj != DBNull.Value ? rawRoleObj.ToString() : null;
+            _logger.LogInformation("Retrieved raw UserRole for user {Id}: {RawUserRole}", id, rawUserRole);
+
+            // Use "Student" as the fallback if the value is null or whitespace
+            string finalUserRole = string.IsNullOrWhiteSpace(rawUserRole) ? "Student" : rawUserRole;
+
             return new UserDto
             {
                 Id = reader.GetInt32("Id"),
@@ -92,7 +109,7 @@ public class AccountService
                 Grade = reader.IsDBNull("Grade") ? null : reader.GetInt32("Grade"),
                 ClassId = reader.IsDBNull("ClassId") ? null : reader.GetInt32("ClassId"),
                 SchoolId = reader.IsDBNull("SchoolId") ? null : reader.GetInt32("SchoolId"),
-                UserRole = reader.GetString("UserRole"),
+                UserRole = finalUserRole,
                 ProficiencyMath = reader.GetDouble("ProficiencyMath"),
                 ProficiencyEbrw = reader.GetDouble("ProficiencyEbrw"),
                 OverallProficiency = reader.GetDouble("OverallProficiency")
@@ -100,5 +117,7 @@ public class AccountService
         }
         return null;
     }
+
+
 
 }

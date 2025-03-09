@@ -79,25 +79,31 @@ namespace Pinpoint_Quiz.Controllers
         [HttpPost("login")]
         public IActionResult Login(LoginDto dto)
         {
-            try
+            var userId = _accountService.LoginUser(dto.Email, dto.Password);
+            if (!userId.HasValue)
             {
-                var userId = _accountService.LoginUser(dto.Email, dto.Password);
-                if (!userId.HasValue)
-                {
-                    ModelState.AddModelError("", "Invalid credentials.");
-                    ViewBag.ErrorMessage = "Invalid email or password.";
-                    return View(dto);
-                }
-                HttpContext.Session.SetInt32("UserId", userId.Value);
-        return RedirectToAction("Profile");
+                ModelState.AddModelError("", "Invalid credentials.");
+                ViewBag.ErrorMessage = "Invalid email or password.";
+                return View(dto);
             }
-            catch (Exception ex)
+            HttpContext.Session.SetInt32("UserId", userId.Value);
+
+            // Retrieve user details including the role.
+            var user = _accountService.GetUserById(userId.Value);
+            if (user != null)
             {
-                _logger.LogError(ex, "Error attempting to log in user with email {Email}", dto.Email);
-                return StatusCode(StatusCodes.Status500InternalServerError,
-                                  "An error occurred during login. Please check logs.");
+                var initials = $"{user.FirstName[0]}{user.LastName[0]}".ToUpper();
+                HttpContext.Session.SetString("UserInitials", initials);
+
+                // Fallback: if UserRole is null or whitespace, default to "Student"
+                string role = string.IsNullOrWhiteSpace(user.UserRole) ? "Student" : user.UserRole;
+                HttpContext.Session.SetString("UserRole", role);
+
+                _logger.LogInformation("Set session UserRole: {Role}", role);
             }
+            return RedirectToAction("Profile");
         }
+
 
 
         // GET: /Account/Profile

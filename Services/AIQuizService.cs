@@ -74,6 +74,8 @@ namespace Pinpoint_Quiz.Services
         {
             var questions = new List<QuestionResultDto>();
             using var conn = _db.GetConnection();
+            conn.Open();
+
             // Remove the extra call to open the connection; it's already open.
 
             string sql = @"SELECT Questions FROM QuizResults WHERE UserId = @UserId ORDER BY QuizDate DESC LIMIT 10;";

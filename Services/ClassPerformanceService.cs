@@ -19,6 +19,8 @@ namespace Pinpoint_Quiz.Services
         {
             var list = new List<AvgData>();
             using var conn = _db.GetConnection();
+            conn.Open();
+
             using var cmd = conn.CreateCommand();
             cmd.CommandText = @"
                 SELECT DATE(QR.QuizDate) AS QuizDay, AVG(QR.OverallProficiency) AS AvgProf
@@ -46,6 +48,8 @@ namespace Pinpoint_Quiz.Services
         {
             var list = new List<AvgData>();
             using var conn = _db.GetConnection();
+            conn.Open();
+
             using var cmd = conn.CreateCommand();
             cmd.CommandText = @"
                 SELECT DATE_FORMAT(QR.QuizDate, '%Y-%u') AS WeekLabel, AVG(QR.OverallProficiency) AS AvgProf
@@ -72,6 +76,8 @@ namespace Pinpoint_Quiz.Services
         {
             var list = new List<StudentRow>();
             using var conn = _db.GetConnection();
+            conn.Open();
+
             using var cmd = conn.CreateCommand();
             cmd.CommandText = @"
                 SELECT 

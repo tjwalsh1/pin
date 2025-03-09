@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using Microsoft.Data.Sqlite;
 using Pinpoint_Quiz.Dtos;
 using Pinpoint_Quiz.Models;
 
@@ -70,11 +69,14 @@ namespace Pinpoint_Quiz.Services
         private int GetQuizCount(int userId)
         {
             using (var conn = _db.GetConnection())
-            using (var cmd = conn.CreateCommand())
             {
-                cmd.CommandText = "SELECT COUNT(*) FROM QuizResults WHERE UserId=@UserId";
-                cmd.Parameters.AddWithValue("@UserId", userId);
-                return Convert.ToInt32(cmd.ExecuteScalar());
+                conn.Open();
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = "SELECT COUNT(*) FROM QuizResults WHERE UserId=@UserId";
+                    cmd.Parameters.AddWithValue("@UserId", userId);
+                    return Convert.ToInt32(cmd.ExecuteScalar());
+                }
             }
         }
 
@@ -82,16 +84,19 @@ namespace Pinpoint_Quiz.Services
         private int CountPerfectTens(int userId)
         {
             using (var conn = _db.GetConnection())
-            using (var cmd = conn.CreateCommand())
             {
-                cmd.CommandText = @"
-                    SELECT COUNT(*)
-                    FROM QuizResults
-                    WHERE UserId=@UserId 
-                      AND (MathTotal + EbrwTotal)=10 
-                      AND (MathCorrect + EbrwCorrect)=10";
-                cmd.Parameters.AddWithValue("@UserId", userId);
-                return Convert.ToInt32(cmd.ExecuteScalar());
+                conn.Open();
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = @"
+                        SELECT COUNT(*)
+                        FROM QuizResults
+                        WHERE UserId=@UserId 
+                          AND (MathTotal + EbrwTotal)=10 
+                          AND (MathCorrect + EbrwCorrect)=10";
+                    cmd.Parameters.AddWithValue("@UserId", userId);
+                    return Convert.ToInt32(cmd.ExecuteScalar());
+                }
             }
         }
 
@@ -108,13 +113,16 @@ namespace Pinpoint_Quiz.Services
             if (!AlreadyHasAccolade(userId, name))
             {
                 using (var conn = _db.GetConnection())
-                using (var cmd = conn.CreateCommand())
                 {
-                    cmd.CommandText = "INSERT INTO Accolades (Name, Description, UserId) VALUES (@Name, @Desc, @UserId)";
-                    cmd.Parameters.AddWithValue("@Name", name);
-                    cmd.Parameters.AddWithValue("@Desc", description);
-                    cmd.Parameters.AddWithValue("@UserId", userId);
-                    cmd.ExecuteNonQuery();
+                    conn.Open();
+                    using (var cmd = conn.CreateCommand())
+                    {
+                        cmd.CommandText = "INSERT INTO Accolades (Name, Description, UserId) VALUES (@Name, @Desc, @UserId)";
+                        cmd.Parameters.AddWithValue("@Name", name);
+                        cmd.Parameters.AddWithValue("@Desc", description);
+                        cmd.Parameters.AddWithValue("@UserId", userId);
+                        cmd.ExecuteNonQuery();
+                    }
                 }
                 newlyAwarded.Add(name);
             }
@@ -124,13 +132,16 @@ namespace Pinpoint_Quiz.Services
         private bool AlreadyHasAccolade(int userId, string name)
         {
             using (var conn = _db.GetConnection())
-            using (var cmd = conn.CreateCommand())
             {
-                cmd.CommandText = "SELECT COUNT(*) FROM Accolades WHERE UserId=@UserId AND Name=@Name";
-                cmd.Parameters.AddWithValue("@UserId", userId);
-                cmd.Parameters.AddWithValue("@Name", name);
-                int count = Convert.ToInt32(cmd.ExecuteScalar());
-                return count > 0;
+                conn.Open();
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = "SELECT COUNT(*) FROM Accolades WHERE UserId=@UserId AND Name=@Name";
+                    cmd.Parameters.AddWithValue("@UserId", userId);
+                    cmd.Parameters.AddWithValue("@Name", name);
+                    int count = Convert.ToInt32(cmd.ExecuteScalar());
+                    return count > 0;
+                }
             }
         }
 
@@ -138,25 +149,28 @@ namespace Pinpoint_Quiz.Services
         private User GetUserById(int userId)
         {
             using (var conn = _db.GetConnection())
-            using (var cmd = conn.CreateCommand())
             {
-                cmd.CommandText = "SELECT Id, Email, FirstName, LastName, Grade, ProficiencyMath, ProficiencyEbrw, OverallProficiency FROM Users WHERE Id=@UserId";
-                cmd.Parameters.AddWithValue("@UserId", userId);
-                using (var reader = cmd.ExecuteReader())
+                conn.Open();
+                using (var cmd = conn.CreateCommand())
                 {
-                    if (reader.Read())
+                    cmd.CommandText = "SELECT Id, Email, FirstName, LastName, Grade, ProficiencyMath, ProficiencyEbrw, OverallProficiency FROM Users WHERE Id=@UserId";
+                    cmd.Parameters.AddWithValue("@UserId", userId);
+                    using (var reader = cmd.ExecuteReader())
                     {
-                        return new User
+                        if (reader.Read())
                         {
-                            Id = reader.GetInt32(0),
-                            Email = reader.GetString(1),
-                            FirstName = reader.GetString(2),
-                            LastName = reader.GetString(3),
-                            Grade = reader.IsDBNull(4) ? 0 : reader.GetInt32(4),
-                            ProficiencyMath = reader.GetDouble(5),
-                            ProficiencyEbrw = reader.GetDouble(6),
-                            OverallProficiency = reader.GetDouble(7)
-                        };
+                            return new User
+                            {
+                                Id = reader.GetInt32(0),
+                                Email = reader.GetString(1),
+                                FirstName = reader.GetString(2),
+                                LastName = reader.GetString(3),
+                                Grade = reader.IsDBNull(4) ? 0 : reader.GetInt32(4),
+                                ProficiencyMath = reader.GetDouble(5),
+                                ProficiencyEbrw = reader.GetDouble(6),
+                                OverallProficiency = reader.GetDouble(7)
+                            };
+                        }
                     }
                 }
             }
@@ -171,25 +185,28 @@ namespace Pinpoint_Quiz.Services
             var accolades = new List<AccoladeDto>();
 
             using (var conn = _db.GetConnection())
-            using (var cmd = conn.CreateCommand())
             {
-                cmd.CommandText = @"
-                    SELECT Name, Description
-                    FROM Accolades
-                    WHERE UserId = @UserId
-                    ORDER BY DateEarned ASC
-                ";
-                cmd.Parameters.AddWithValue("@UserId", userId);
-
-                using (var reader = cmd.ExecuteReader())
+                conn.Open();
+                using (var cmd = conn.CreateCommand())
                 {
-                    while (reader.Read())
+                    cmd.CommandText = @"
+                        SELECT Name, Description
+                        FROM Accolades
+                        WHERE UserId = @UserId
+                        ORDER BY DateEarned ASC
+                    ";
+                    cmd.Parameters.AddWithValue("@UserId", userId);
+
+                    using (var reader = cmd.ExecuteReader())
                     {
-                        accolades.Add(new AccoladeDto
+                        while (reader.Read())
                         {
-                            Name = reader.IsDBNull(0) ? string.Empty : reader.GetString(0),
-                            Description = reader.IsDBNull(1) ? string.Empty : reader.GetString(1)
-                        });
+                            accolades.Add(new AccoladeDto
+                            {
+                                Name = reader.IsDBNull(0) ? string.Empty : reader.GetString(0),
+                                Description = reader.IsDBNull(1) ? string.Empty : reader.GetString(1)
+                            });
+                        }
                     }
                 }
             }

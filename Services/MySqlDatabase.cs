@@ -15,13 +15,7 @@ public class MySqlDatabase
 
     public MySqlConnection GetConnection()
     {
-        var conn = new MySqlConnection(_connectionString);
-        if (conn.State != System.Data.ConnectionState.Open)
-        {
-            conn.Open();
-            _logger.LogInformation("Successfully opened connection to MySQL.");
-        }
-        return conn;
+        return new MySqlConnection(_connectionString);
     }
 
 

@@ -27,6 +27,8 @@ namespace Pinpoint_Quiz.Services
             try
             {
                 using var conn = _database.GetConnection();
+                conn.Open();
+
                 using var cmd = conn.CreateCommand();
                 cmd.CommandText = @"
                     SELECT Week, ProficiencyMath, ProficiencyEbrw
@@ -81,6 +83,8 @@ namespace Pinpoint_Quiz.Services
             try
             {
                 using var conn = _database.GetConnection();
+                conn.Open();
+
                 using var cmd = conn.CreateCommand();
                 cmd.CommandText = $@"
                     UPDATE Users
