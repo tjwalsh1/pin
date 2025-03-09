@@ -22,40 +22,33 @@ namespace Pinpoint_Quiz.Controllers
         [HttpGet("")]
         public IActionResult Index(int? teacherId, bool allSchool = false)
         {
+            var role = HttpContext.Session.GetString("UserRole");
             var userId = HttpContext.Session.GetInt32("UserId");
-            if (!userId.HasValue)
+            if (string.IsNullOrEmpty(role) || !userId.HasValue)
                 return RedirectToAction("Login", "Account");
 
-            // Get the admin's record to retrieve the schoolId.
+            // For Admins:
             var admin = _userService.GetUserById(userId.Value);
-            if (admin == null || admin.SchoolId == null)
-                return Forbid();
-
-            int schoolId = admin.SchoolId.Value;
-
-            SchoolIndexViewModel model = new SchoolIndexViewModel();
-
-            // Populate teacher dropdown using the service.
-            model.Teachers = _schoolPerf.GetTeacherRowsForSchool(schoolId);
-
+            int schoolId = admin?.SchoolId ?? 0;
+            SchoolIndexViewModel model;
             if (allSchool)
             {
                 model = _schoolPerf.GetSchoolPerformance(schoolId);
+                model.ShowWholeSchool = true;
             }
             else if (teacherId.HasValue)
             {
-                // Optionally: you might filter to a specific teacher's class.
-                // For now, we simply note the teacher selection.
+                // Here you could filter by a teacher's class if needed:
                 model = _schoolPerf.GetSchoolPerformance(schoolId);
                 model.SelectedTeacherId = teacherId;
             }
             else
             {
-                // Default to whole school view.
                 model = _schoolPerf.GetSchoolPerformance(schoolId);
+                model.ShowWholeSchool = true;
             }
-
-            return View(model);
+            return View(model); // View uses SchoolIndexViewModel
         }
+
     }
 }

@@ -7,7 +7,7 @@ using Pinpoint_Quiz.Services;
 
 namespace Pinpoint_Quiz.Controllers
 {
-    [RoleAuthorize("Teacher", "Administrator", "Developer")]
+    [RoleAuthorize("Teacher", "Administrator")]
     [Route("[controller]")]
     public class ClassController : Controller
     {
@@ -21,51 +21,26 @@ namespace Pinpoint_Quiz.Controllers
         }
 
         [HttpGet("")]
-        public IActionResult Index(int? teacherId, bool allSchool = false)
+        public IActionResult Index()
         {
             var role = HttpContext.Session.GetString("UserRole");
             var userId = HttpContext.Session.GetInt32("UserId");
             if (string.IsNullOrEmpty(role) || !userId.HasValue)
                 return RedirectToAction("Login", "Account");
 
-            ClassIndexViewModel model = new ClassIndexViewModel();
-            if (role == "Teacher")
+            // If the user is an administrator, redirect to the SchoolController
+            if (role == "Administrator")
             {
-                // For teacher: get the teacher’s own class.
-                var teacher = _userService.GetUserById(userId.Value);
-                if (teacher == null)
-                    return Forbid();
-                model = _classPerf.GetClassPerformance(teacher.ClassId ?? 0, false);
-            }
-            else // Administrator
-            {
-                var admin = _userService.GetUserById(userId.Value);
-                int schoolId = admin?.SchoolId ?? 0;
-                var teachers = _userService.GetTeachersBySchool(schoolId);
-                model.TeacherDropdown = teachers
-                    .Select(t => new TeacherOption { TeacherId = t.Id, TeacherName = t.FirstName + " " + t.LastName })
-                    .ToList();
-
-                if (allSchool)
-                {
-                    model = _classPerf.GetSchoolPerformance(schoolId);
-                    model.ShowWholeSchool = true;
-                }
-                else if (teacherId.HasValue)
-                {
-                    var teacher = teachers.FirstOrDefault(t => t.Id == teacherId.Value);
-                    if (teacher == null) return Forbid();
-                    model = _classPerf.GetClassPerformance(teacher.ClassId ?? 0, true);
-                    model.SelectedTeacherId = teacherId;
-                }
-                else
-                {
-                    model = _classPerf.GetSchoolPerformance(schoolId);
-                    model.ShowWholeSchool = true;
-                }
+                return RedirectToAction("Index", "School");
             }
 
-            return View(model);
+            // Otherwise, assume teacher role
+            var teacher = _userService.GetUserById(userId.Value);
+            if (teacher == null)
+                return Forbid();
+            // Get teacher’s own class performance.
+            ClassIndexViewModel model = _classPerf.GetClassPerformance(teacher.ClassId ?? 0);
+            return View(model); // The view is strongly typed to ClassIndexViewModel
         }
     }
 }

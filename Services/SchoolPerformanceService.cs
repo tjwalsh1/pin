@@ -1,4 +1,4 @@
-﻿using Microsoft.Data.Sqlite;
+﻿using MySqlConnector;
 using Microsoft.Extensions.Logging;
 using Pinpoint_Quiz.Models;
 using System;
@@ -18,20 +18,19 @@ namespace Pinpoint_Quiz.Services
             _logger = logger;
         }
 
-        // Returns daily average overall proficiency for a given school (last 'days' days)
         public List<AvgData> GetDailyAveragesForSchool(int schoolId, int days)
         {
             var list = new List<AvgData>();
             using var conn = _db.GetConnection();
             using var cmd = conn.CreateCommand();
             cmd.CommandText = @"
-                SELECT date(QR.QuizDate) as QuizDay, AVG(QR.OverallProficiency) as AvgProf
+                SELECT DATE(QR.QuizDate) AS QuizDay, AVG(QR.OverallProficiency) AS AvgProf
                 FROM QuizResults QR
                 JOIN Users U ON QR.UserId = U.Id
                 WHERE U.SchoolId = @SchoolId
-                  AND date(QR.QuizDate) >= date('now', '-' || @Days || ' days')
+                  AND DATE(QR.QuizDate) >= DATE_SUB(CURDATE(), INTERVAL @Days DAY)
                 GROUP BY QuizDay
-                ORDER BY QuizDay ASC
+                ORDER BY QuizDay ASC;
             ";
             cmd.Parameters.AddWithValue("@SchoolId", schoolId);
             cmd.Parameters.AddWithValue("@Days", days);
@@ -39,58 +38,54 @@ namespace Pinpoint_Quiz.Services
             using var reader = cmd.ExecuteReader();
             while (reader.Read())
             {
-                string day = reader.GetString(0);
-                double avg = reader.GetDouble(1);
+                string day = Convert.ToString(reader["QuizDay"]);
+                double avg = reader.GetDouble("AvgProf");
                 list.Add(new AvgData { DateLabel = day, AverageProf = avg });
             }
             return list;
         }
 
-        // Returns weekly average overall proficiency for a given school (last 6 months)
         public List<AvgData> GetWeeklyAveragesForSchool(int schoolId)
         {
             var list = new List<AvgData>();
             using var conn = _db.GetConnection();
             using var cmd = conn.CreateCommand();
-            // Group by week using SQLite's strftime
             cmd.CommandText = @"
-                SELECT strftime('%Y-%W', QR.QuizDate) as WeekLabel, AVG(QR.OverallProficiency) as AvgProf
+                SELECT DATE_FORMAT(QR.QuizDate, '%Y-%u') AS WeekLabel, AVG(QR.OverallProficiency) AS AvgProf
                 FROM QuizResults QR
                 JOIN Users U ON QR.UserId = U.Id
                 WHERE U.SchoolId = @SchoolId
-                  AND date(QR.QuizDate) >= date('now', '-6 months')
+                  AND DATE(QR.QuizDate) >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH)
                 GROUP BY WeekLabel
-                ORDER BY WeekLabel ASC
+                ORDER BY WeekLabel ASC;
             ";
             cmd.Parameters.AddWithValue("@SchoolId", schoolId);
 
             using var reader = cmd.ExecuteReader();
             while (reader.Read())
             {
-                string week = reader.GetString(0);
-                double avg = reader.GetDouble(1);
+                string week = Convert.ToString(reader["WeekLabel"]);
+                double avg = reader.GetDouble("AvgProf");
                 list.Add(new AvgData { WeekLabel = week, AverageProf = avg });
             }
             return list;
         }
 
-        // Retrieves teacher rows for the school.
         public List<TeacherRow> GetTeacherRowsForSchool(int schoolId)
         {
             var list = new List<TeacherRow>();
             using var conn = _db.GetConnection();
             using var cmd = conn.CreateCommand();
-            // Make sure the SQL syntax is correct (no trailing commas)
             cmd.CommandText = @"
                 SELECT 
                     U.Id, 
-                    U.FirstName || ' ' || U.LastName AS FullName,
+                    CONCAT(U.FirstName, ' ', U.LastName) AS FullName,
                     (SELECT COUNT(*) FROM QuizResults WHERE UserId = U.Id) AS QuizCount,
                     (SELECT MAX(QuizDate) FROM QuizResults WHERE UserId = U.Id) AS LastQuizDate
                 FROM Users U
                 WHERE U.SchoolId = @SchoolId
                   AND U.UserRole = 'Teacher'
-                ORDER BY U.LastName, U.FirstName
+                ORDER BY U.LastName, U.FirstName;
             ";
             cmd.Parameters.AddWithValue("@SchoolId", schoolId);
 
@@ -100,7 +95,7 @@ namespace Pinpoint_Quiz.Services
                 var teacher = new TeacherRow
                 {
                     TeacherId = reader.GetInt32(0),
-                    Name = reader.GetString(1),
+                    Name = Convert.ToString(reader["FullName"]),
                     QuizCount = reader.GetInt32(2),
                     LastQuizDate = reader.IsDBNull(3) ? (DateTime?)null : reader.GetDateTime(3)
                 };
@@ -109,33 +104,21 @@ namespace Pinpoint_Quiz.Services
             return list;
         }
 
-        // Build a SchoolIndexViewModel for the entire school.
         public SchoolIndexViewModel GetSchoolPerformance(int schoolId)
         {
             var model = new SchoolIndexViewModel();
 
-            // Daily averages (last 30 days)
             var daily = GetDailyAveragesForSchool(schoolId, 30);
             model.DailyDates = daily.Select(x => x.DateLabel).ToList();
             model.DailyAverages = daily.Select(x => x.AverageProf).ToList();
 
-            // Weekly averages (last 6 months)
             var weekly = GetWeeklyAveragesForSchool(schoolId);
             model.WeeklyLabels = weekly.Select(x => x.WeekLabel).ToList();
             model.WeeklyAverages = weekly.Select(x => x.AverageProf).ToList();
 
-            // Teacher list for the school
             model.Teachers = GetTeacherRowsForSchool(schoolId);
 
             return model;
         }
-    }
-
-    // Helper model for averages
-    public class AvgData
-    {
-        public string DateLabel { get; set; }
-        public string WeekLabel { get; set; }
-        public double AverageProf { get; set; }
     }
 }

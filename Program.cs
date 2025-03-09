@@ -48,6 +48,7 @@ builder.Services.AddAuthentication(options =>
 {
     // Cookie settings
     options.LoginPath = "/Account/Login";
+    options.AccessDeniedPath = "/Account/AccessDenied";
     // You can add more cookie options here if needed.
 });
 
@@ -82,5 +83,19 @@ app.UseAuthorization();
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");
+
+app.Use(async (context, next) =>
+{
+    var session = context.Session;
+    var userId = session.GetInt32("UserId");
+    var userRole = session.GetString("UserRole");
+
+    // Log session info using your logging provider (e.g., Serilog)
+    var logger = context.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("SessionLogger");
+    logger.LogInformation("Session info: UserId={UserId}, UserRole={UserRole}", userId, userRole);
+
+    await next.Invoke();
+});
+
 
 app.Run();
