@@ -1,5 +1,5 @@
 ﻿@model Pinpoint_Quiz.Models.SchoolIndexViewModel
-@using System.Text.Json;
+@using System.Text.Json
 
 @{
     ViewData["Title"] = "School Performance";
@@ -11,46 +11,50 @@
     }
 }
 
-
 <div class="hero-container">
     <div style="max-width:1200px; margin:auto; background:#fff; padding:20px; border-radius:10px;">
         <h2>School Dashboard</h2>
-        <p></p>
         <h3>Daily Averages (Last 30 Days)</h3>
-        <p></p>
         <canvas id="daily-chart" width="800" height="300"></canvas>
-        <p></p>
+
         <h3>Weekly Averages (Last 6 Months)</h3>
         <canvas id="weekly-chart" width="800" height="300"></canvas>
-        <p></p>
+
         <h3>Teachers</h3>
-        <table class="table">
-            <thead>
-                <tr>
-                    <th>Name</th>
-                    <th>Quizzes Taken</th>
-                    <th>Last Quiz Date</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var t in Model.Teachers)
-                {
+        @if (Model.Teachers != null && Model.Teachers.Any())
+        {
+            <table class="table">
+                <thead>
                     <tr>
-                        <td>
-                            <a href="/Class?teacherId=@t.TeacherId">
-                                @t.Name
-                            </a>
-                        </td>
-                        <td>@t.QuizCount</td>
-                        <td>
-                            @(t.LastQuizDate.HasValue
-                                ? t.LastQuizDate.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm")
-                                : "No quizzes yet")
-                        </td>
+                        <th>Name</th>
+                        <th>Quizzes Taken</th>
+                        <th>Last Quiz Date</th>
                     </tr>
-                }
-            </tbody>
-        </table>
+                </thead>
+                <tbody>
+                    @foreach (var t in Model.Teachers)
+                    {
+                        <tr>
+                            <td>
+                                <a href="/Class?teacherId=@t.TeacherId">
+                                    @t.Name
+                                </a>
+                            </td>
+                            <td>@t.QuizCount</td>
+                            <td>
+                                @(t.LastQuizDate.HasValue
+                                    ? t.LastQuizDate.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm")
+                                    : "No quizzes yet")
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+        else
+        {
+            <p>No teacher data available.</p>
+        }
     </div>
 </div>
 
