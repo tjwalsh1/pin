@@ -7,7 +7,7 @@ using Pinpoint_Quiz.Services;
 
 namespace Pinpoint_Quiz.Controllers
 {
-    [RoleAuthorize("Teacher", "Administrator")]
+    [RoleAuthorize("Teacher", "Administrator", "Developer")]
     [Route("[controller]")]
     public class ClassController : Controller
     {
