@@ -382,6 +382,73 @@ namespace Pinpoint_Quiz.Services
             if (proficiency < 1.0) proficiency = 1.0;
             return proficiency;
         }
+        public void UpdateAiActualProficiency(int userId, List<QuestionResultDto> questionResults)
+        {
+            // Get current proficiencies.
+            double currentMath, currentEbrw;
+            using (var conn = _db.GetConnection())
+            {
+                conn.Open();
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = "SELECT ProficiencyMath, ProficiencyEbrw FROM Users WHERE Id = @U";
+                cmd.Parameters.AddWithValue("@U", userId);
+                using var reader = cmd.ExecuteReader();
+                if (reader.Read())
+                {
+                    currentMath = reader.GetDouble(0);
+                    currentEbrw = reader.GetDouble(1);
+                }
+                else
+                {
+                    _logger.LogWarning("User {UserId} not found.", userId);
+                    return;
+                }
+            }
+
+            // We'll use a multiplier to increase the impact of each correct answer.
+            // For example, multiplier = 3 means each per-question change is tripled.
+            const double multiplier = 3.0;
+            double newMath = currentMath;
+            double newEbrw = currentEbrw;
+
+            foreach (var qr in questionResults)
+            {
+                if (qr.Subject == "Math")
+                {
+                    double delta = ApplyProficiencyChange(newMath, qr.Difficulty, qr.IsCorrect, false) - newMath;
+                    newMath += delta * multiplier;
+                }
+                else if (qr.Subject == "EBRW")
+                {
+                    double delta = ApplyProficiencyChange(newEbrw, qr.Difficulty, qr.IsCorrect, false) - newEbrw;
+                    newEbrw += delta * multiplier;
+                }
+            }
+
+            newMath = Math.Clamp(Math.Round(newMath, 2), 1.0, 10.0);
+            newEbrw = Math.Clamp(Math.Round(newEbrw, 2), 1.0, 10.0);
+            double newOverall = Math.Round((newMath + newEbrw) / 2.0, 2);
+
+            using (var conn = _db.GetConnection())
+            {
+                conn.Open();
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = @"
+            UPDATE Users
+            SET ProficiencyMath = @Math,
+                ProficiencyEbrw = @Ebrw,
+                OverallProficiency = @Overall
+            WHERE Id = @UserId";
+                cmd.Parameters.AddWithValue("@Math", newMath);
+                cmd.Parameters.AddWithValue("@Ebrw", newEbrw);
+                cmd.Parameters.AddWithValue("@Overall", newOverall);
+                cmd.Parameters.AddWithValue("@UserId", userId);
+                cmd.ExecuteNonQuery();
+            }
+            _logger.LogInformation("AI proficiency updated for user {UserId}: Math: {Math}, EBRW: {Ebrw}, Overall: {Overall}",
+                userId, newMath, newEbrw, newOverall);
+        }
+
 
         // The adaptive logic for actual proficiency updates (like final after a quiz).
         public void UpdateActualProficiency(int userId, List<QuestionResultDto> questionResults, bool retakeMode)
@@ -441,7 +508,7 @@ namespace Pinpoint_Quiz.Services
 
         // This is the function that we’ll modify so actual proficiency changes 
         // more slowly (or differently) than the user’s “estimated” proficiency.
-        private double ApplyProficiencyChange(double currentProf, double questionDifficulty, bool isCorrect, bool retakeMode)
+        public double ApplyProficiencyChange(double currentProf, double questionDifficulty, bool isCorrect, bool retakeMode)
         {
             // We'll keep it simple: compare currentProf to questionDifficulty 
             // to see if the question is "above," "equal," or "below" the user's proficiency.
@@ -628,6 +695,26 @@ namespace Pinpoint_Quiz.Services
             int quizId = Convert.ToInt32(cmd.ExecuteScalar());
             _logger.LogInformation($"Saved quiz results with Quiz ID: {quizId}");
             return quizId;
+        }
+        public void UpdateUserProficiency(int userId, double newMath, double newEbrw)
+        {
+            newMath = Math.Clamp(newMath, 1.0, 10.0);
+            newEbrw = Math.Clamp(newEbrw, 1.0, 10.0);
+            double overall = Math.Round((newMath + newEbrw) / 2.0, 2);
+            using var conn = _db.GetConnection();
+            conn.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = @"
+         UPDATE Users
+         SET ProficiencyMath = @Math,
+             ProficiencyEbrw = @Ebrw,
+             OverallProficiency = @Overall
+         WHERE Id = @UserId";
+            cmd.Parameters.AddWithValue("@Math", newMath);
+            cmd.Parameters.AddWithValue("@Ebrw", newEbrw);
+            cmd.Parameters.AddWithValue("@Overall", overall);
+            cmd.Parameters.AddWithValue("@UserId", userId);
+            cmd.ExecuteNonQuery();
         }
 
         public QuizResults GetQuizResults(int userId, int quizId)

@@ -180,12 +180,11 @@ namespace Pinpoint_Quiz.Controllers
 
             bool isCorrect = selectedAnswer == correctAnswer;
 
-            // Store selected answer in the quizSession.
-            // We'll reference this later in SubmitQuiz.
+            // Update the current question record
             quizSession.Questions[questionNumber - 1].UserCorrect = isCorrect;
-            quizSession.Questions[questionNumber - 1].Dto.YourAnswer = selectedAnswer; // <== new line
+            quizSession.Questions[questionNumber - 1].Dto.YourAnswer = selectedAnswer;
 
-            // (Optional) Save question response in a table if you want:
+            // Optionally, save the response in a log
             _quizService.SaveQuestionResponse(
                 quizSession.UserId,
                 quizSession.QuizId,
@@ -194,27 +193,48 @@ namespace Pinpoint_Quiz.Controllers
                 isCorrect
             );
 
-            // If adaptive, adjust local proficiency
-            if (quizSession.IsAdaptive)
+            // Retrieve current actual proficiencies
+            var currentProfs = _quizService.GetActualProficiencies(quizSession.UserId);
+            double currentMath = currentProfs.math;
+            double currentEbrw = currentProfs.ebrw;
+
+            // Calculate new proficiency for the subject answered
+            if (subject == "Math")
             {
-                if (subject == "Math")
-                {
-                    quizSession.LocalMath = isCorrect
-                        ? quizSession.LocalMath + 0.5
-                        : Math.Max(1, quizSession.LocalMath - 1);
-                }
-                else
-                {
-                    quizSession.LocalEbrw = isCorrect
-                        ? quizSession.LocalEbrw + 0.5
-                        : Math.Max(1, quizSession.LocalEbrw - 1);
-                }
+                double newMath = _quizService.ApplyProficiencyChange(
+                    currentMath,
+                    quizSession.Questions[questionNumber - 1].Dto.Difficulty,
+                    isCorrect,
+                    quizSession.RetakeMode
+                );
+                // Update Math while keeping EBRW unchanged
+                _quizService.UpdateUserProficiency(quizSession.UserId, newMath, currentEbrw);
+            }
+            else if (subject == "EBRW")
+            {
+                double newEbrw = _quizService.ApplyProficiencyChange(
+                    currentEbrw,
+                    quizSession.Questions[questionNumber - 1].Dto.Difficulty,
+                    isCorrect,
+                    quizSession.RetakeMode
+                );
+                _quizService.UpdateUserProficiency(quizSession.UserId, currentMath, newEbrw);
             }
 
+            // Optionally, re-read and log updated proficiency values here
+
+            // Update quiz session counts and index
+            if (subject == "Math")
+                quizSession.MathCount++;
+            else if (subject == "EBRW")
+                quizSession.EbrwCount++;
+
+            quizSession.CurrentIndex++;
             HttpContext.Session.SetObject("QuizSession", quizSession);
 
             return RedirectToAction("NextQuestion");
         }
+
 
         [HttpGet("start-retake")]
         public IActionResult StartRetake()
@@ -277,9 +297,6 @@ namespace Pinpoint_Quiz.Controllers
             return RedirectToAction("NextQuestion");
         }
 
-
-
-
         [HttpGet("SubmitQuiz")]
         public IActionResult SubmitQuiz()
         {
@@ -287,64 +304,123 @@ namespace Pinpoint_Quiz.Controllers
             if (quizSession == null)
                 return RedirectToAction("Index");
 
-            int correctMath = quizSession.Questions.Count(q => q.Subject == "Math" && q.UserCorrect == true);
-            int correctEbrw = quizSession.Questions.Count(q => q.Subject == "EBRW" && q.UserCorrect == true);
-            int totalMath = quizSession.Questions.Count(q => q.Subject == "Math");
-            int totalEbrw = quizSession.Questions.Count(q => q.Subject == "EBRW");
+            DateTime timeStarted = quizSession.TimeStarted;
+            DateTime timeEnded = DateTime.Now;
+            double timeElapsed = (timeEnded - timeStarted).TotalSeconds;
 
+            // Build the question results list.
             var questionResults = quizSession.Questions
                 .Where(q => q.Dto != null)
                 .Select(q => new QuestionResultDto
                 {
                     QuestionPrompt = q.Dto.QuestionPrompt,
-                    YourAnswer = q.Dto.YourAnswer,  // <== Pull the stored answer
+                    YourAnswer = q.Dto.YourAnswer,
                     CorrectAnswer = q.Dto.CorrectAnswer,
                     Explanation = q.Dto.Explanation,
                     IsCorrect = q.UserCorrect ?? false,
                     Subject = q.Subject,
                     Difficulty = q.Dto.Difficulty
                 }).ToList();
-            var retakeMode = quizSession.RetakeMode;
-            DateTime timeStarted = quizSession.TimeStarted;
-            DateTime timeEnded = DateTime.Now;
-            double timeElapsed = (timeEnded - timeStarted).TotalSeconds;
 
-            // Update actual proficiency:            
-            _quizService.UpdateActualProficiency(quizSession.UserId, questionResults, quizSession.RetakeMode);
-
-            // Retrieve updated actual profs if you store them:
-            var (actualMath, actualEbrw, actualOverall) = _quizService.GetActualProficiencies(quizSession.UserId);
-
-            int quizId = _quizService.SaveQuizResults(
-                quizSession.UserId,
-                quizSession.LocalMath,
-                quizSession.LocalEbrw,
-                (quizSession.LocalMath + quizSession.LocalEbrw) / 2.0,
-                correctMath,
-                correctEbrw,
-                totalMath,
-                totalEbrw,
-                questionResults,
-                actualMath, actualEbrw, actualOverall, timeStarted, timeEnded, timeElapsed
-            );
-
-            // Once everything is done:
-            var newlyAwarded = _accoladeService.CheckAndAwardAccolades(
-                quizSession.UserId,
-                quizSession.RetakeMode,
-                correctMath + correctEbrw, // total correct
-                totalMath + totalEbrw      // total questions
-            );
-
-            if (newlyAwarded.Any())
+            if (!quizSession.IsAdaptive)
             {
-                ViewBag.AccoladeMessage = "Congrats! You earned new accolade(s): " + string.Join(", ", newlyAwarded);
+                // For a non-adaptive (AI) quiz, we expect 5 Math and 5 EBRW questions.
+                int totalMath = 5;   // should be 5
+                int totalEbrw = 5;     // should be 5
+                int correctMath = quizSession.Questions.Count(q => q.Subject == "Math" && q.UserCorrect == true);
+                int correctEbrw = quizSession.Questions.Count(q => q.Subject == "EBRW" && q.UserCorrect == true);
+
+                // Calculate displayed scores on a 5-point scale per subject.
+                double mathScoreForDisplay = totalMath > 0 ? ((double)correctMath / totalMath) * 5 : 0;
+                double ebrwScoreForDisplay = totalEbrw > 0 ? ((double)correctEbrw / totalEbrw) * 5 : 0;
+                double overallScoreForDisplay = mathScoreForDisplay + ebrwScoreForDisplay; // overall out of 10
+
+                _logger.LogInformation("Non-adaptive quiz display: Math: {MathScore}, EBRW: {EbrwScore}, Overall: {OverallScore}",
+                    mathScoreForDisplay, ebrwScoreForDisplay, overallScoreForDisplay);
+
+                // Instead of updating proficiency from the aggregated score,
+                // update actual proficiency using the same incremental logic as in your adaptive quiz.
+                _quizService.UpdateActualProficiency(quizSession.UserId, questionResults, quizSession.RetakeMode);
+
+                // Retrieve updated proficiency values.
+                var (actualMath, actualEbrw, actualOverall) = _quizService.GetActualProficiencies(quizSession.UserId);
+
+                // Save quiz results using the display scores.
+                int quizId = _quizService.SaveQuizResults(
+                    quizSession.UserId,
+                    mathScoreForDisplay,    // math score out of 5
+                    ebrwScoreForDisplay,    // EBRW score out of 5
+                    overallScoreForDisplay, // overall score out of 10
+                    correctMath,
+                    correctEbrw,
+                    totalMath,
+                    totalEbrw,
+                    questionResults,
+                    actualMath, actualEbrw, actualOverall,
+                    timeStarted, timeEnded, timeElapsed
+                );
+
+                var newlyAwarded = _accoladeService.CheckAndAwardAccolades(
+                    quizSession.UserId,
+                    quizSession.RetakeMode,
+                    correctMath + correctEbrw, // total correct answers
+                    totalMath + totalEbrw      // total questions (should be 10)
+                );
+
+                if (newlyAwarded.Any())
+                {
+                    ViewBag.AccoladeMessage = "Congrats! You earned new accolade(s): " + string.Join(", ", newlyAwarded);
+                }
+                TempData["AccoladeMessage"] = "Congrats! You earned a new accolade!";
+
+                HttpContext.Session.Remove("QuizSession");
+
+                return RedirectToAction("Results", new { quizId });
             }
-            TempData["AccoladeMessage"] = "Congrats! You earned a new accolade!";
+            else
+            {
+                // Adaptive branch remains unchanged.
+                int correctMath = quizSession.Questions.Count(q => q.Subject == "Math" && q.UserCorrect == true);
+                int correctEbrw = quizSession.Questions.Count(q => q.Subject == "EBRW" && q.UserCorrect == true);
+                int totalMath = quizSession.Questions.Count(q => q.Subject == "Math");
+                int totalEbrw = quizSession.Questions.Count(q => q.Subject == "EBRW");
 
-            HttpContext.Session.Remove("QuizSession");
+                double overallScore = (quizSession.LocalMath + quizSession.LocalEbrw) / 2.0;
 
-            return RedirectToAction("Results", new { quizId });
+                _quizService.UpdateActualProficiency(quizSession.UserId, questionResults, quizSession.RetakeMode);
+                var (actualMath, actualEbrw, actualOverall) = _quizService.GetActualProficiencies(quizSession.UserId);
+
+                int quizId = _quizService.SaveQuizResults(
+                    quizSession.UserId,
+                    quizSession.LocalMath,
+                    quizSession.LocalEbrw,
+                    overallScore,
+                    correctMath,
+                    correctEbrw,
+                    totalMath,
+                    totalEbrw,
+                    questionResults,
+                    actualMath, actualEbrw, actualOverall,
+                    timeStarted, timeEnded, timeElapsed
+                );
+
+                var newlyAwarded = _accoladeService.CheckAndAwardAccolades(
+                    quizSession.UserId,
+                    quizSession.RetakeMode,
+                    correctMath + correctEbrw,
+                    totalMath + totalEbrw
+                );
+
+                if (newlyAwarded.Any())
+                {
+                    ViewBag.AccoladeMessage = "Congrats! You earned new accolade(s): " + string.Join(", ", newlyAwarded);
+                }
+                TempData["AccoladeMessage"] = "Congrats! You earned a new accolade!";
+
+                HttpContext.Session.Remove("QuizSession");
+
+                return RedirectToAction("Results", new { quizId });
+            }
         }
 
         // Show quiz results
@@ -418,35 +494,26 @@ namespace Pinpoint_Quiz.Controllers
             // Redirect to NextQuestion so the reported question is skipped.
             return RedirectToAction("NextQuestion");
         }
-
-
         [HttpGet("start-ai")]
         public async Task<IActionResult> StartAiQuiz()
         {
             int? userId = HttpContext.Session.GetInt32("UserId");
-            if (!userId.HasValue)
-                return RedirectToAction("Login", "Account");
-            int totalWrong = _quizService.GetTotalWrongAnswers(userId.Value);
+            if (!userId.HasValue) return RedirectToAction("Login", "Account");
 
-            if (totalWrong < 5)
-            {
-                // Or if you want to do a quick redirect to "start" or "start-adaptive" 
-                // (depending on your existing route):
-                return RedirectToAction("StartAdaptive");
-            }
-
-            var generatedQuestions = await _aiQuizService.GenerateQuestionsAsync(userId.Value);
+            var generatedQuestions = await _aiQuizService.GenerateSplitAiQuestionsAsync(userId.Value);
             if (generatedQuestions == null || !generatedQuestions.Any())
+            {
                 return RedirectToAction("Index", "Quizzes");
+            }
 
             var quizSession = new QuizSession
             {
                 UserId = userId.Value,
                 IsAdaptive = false,
-                Questions = generatedQuestions.Select(g => new QuestionRecord
+                Questions = generatedQuestions.Select(q => new QuestionRecord
                 {
-                    Subject = g.Subject,
-                    Dto = g,
+                    Subject = q.Subject,
+                    Dto = q,
                     UserCorrect = null
                 }).ToList(),
                 TimeStarted = DateTime.Now
@@ -455,7 +522,6 @@ namespace Pinpoint_Quiz.Controllers
             HttpContext.Session.SetObject("QuizSession", quizSession);
             return RedirectToAction("NextQuestion");
         }
-
 
     }
 }
