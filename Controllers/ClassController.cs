@@ -34,7 +34,6 @@ namespace Pinpoint_Quiz.Controllers
                 return RedirectToAction("Index", "School");
             } */
 
-            // Otherwise, assume teacher role
             var teacher = _userService.GetUserById(userId.Value);
             if (teacher == null)
                 return Forbid();

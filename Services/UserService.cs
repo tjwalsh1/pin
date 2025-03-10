@@ -26,6 +26,7 @@ namespace Pinpoint_Quiz.Services
             try
             {
                 using var conn = _db.GetConnection();
+                conn.Open();
                 using var cmd = conn.CreateCommand();
                 cmd.CommandText = @"
                     SELECT 
@@ -76,63 +77,47 @@ namespace Pinpoint_Quiz.Services
         }
 
         /// <summary>
-        /// Retrieves all teachers in a given school.
+        /// Retrieves all teachers in a given school as a list of TeacherRow objects.
         /// </summary>
-        public List<User> GetTeachersBySchool(int schoolId)
+        public List<TeacherRow> GetTeacherRowsBySchool(int schoolId)
         {
-            var teachers = new List<User>();
+            var teacherRows = new List<TeacherRow>();
             try
             {
                 using var conn = _db.GetConnection();
+                conn.Open();
                 using var cmd = conn.CreateCommand();
                 cmd.CommandText = @"
                     SELECT 
-                        Id,
-                        Email,
-                        PasswordHash,
-                        FirstName,
-                        LastName,
-                        Grade,
-                        ClassId,
-                        SchoolId,
-                        ProficiencyMath,
-                        ProficiencyEbrw,
-                        OverallProficiency,
-                        AvgQuizTime,
-                        UserRole
+                        Id, 
+                        CONCAT(FirstName, ' ', LastName) AS FullName,
+                        (SELECT COUNT(*) FROM QuizResults WHERE UserId = Users.Id) AS QuizCount,
+                        (SELECT MAX(QuizDate) FROM QuizResults WHERE UserId = Users.Id) AS LastQuizDate
                     FROM Users
                     WHERE SchoolId = @SchoolId AND UserRole = 'Teacher'
-                    ORDER BY LastName, FirstName
+                    ORDER BY LastName, FirstName;
                 ";
                 cmd.Parameters.AddWithValue("@SchoolId", schoolId);
 
                 using var reader = cmd.ExecuteReader();
                 while (reader.Read())
                 {
-                    var teacher = new User
+                    var teacher = new TeacherRow
                     {
-                        Id = reader.GetInt32(0),
-                        Email = reader.GetString(1),
-                        PasswordHash = reader.GetString(2),
-                        FirstName = reader.GetString(3),
-                        LastName = reader.GetString(4),
-                        Grade = reader.IsDBNull(5) ? (int?)null : reader.GetInt32(5),
-                        ClassId = reader.IsDBNull(6) ? (int?)null : reader.GetInt32(6),
-                        SchoolId = reader.IsDBNull(7) ? (int?)null : reader.GetInt32(7),
-                        ProficiencyMath = reader.GetDouble(8),
-                        ProficiencyEbrw = reader.GetDouble(9),
-                        OverallProficiency = reader.GetDouble(10),
-                        AvgQuizTime = reader.GetDouble(11),
-                        UserRole = reader.GetString(12)
+                        // Map the user's Id to TeacherId
+                        TeacherId = reader.GetInt32(0),
+                        Name = reader.GetString(1),
+                        QuizCount = reader.IsDBNull(2) ? 0 : reader.GetInt32(2),
+                        LastQuizDate = reader.IsDBNull(3) ? (DateTime?)null : reader.GetDateTime(3)
                     };
-                    teachers.Add(teacher);
+                    teacherRows.Add(teacher);
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError("Error in GetTeachersBySchool: {0}", ex.Message);
+                _logger.LogError("Error in GetTeacherRowsBySchool: {0}", ex.Message);
             }
-            return teachers;
+            return teacherRows;
         }
     }
 }
